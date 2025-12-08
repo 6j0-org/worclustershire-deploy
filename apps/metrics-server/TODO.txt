@@ -1,0 +1,4 @@
+This is broken. Logs show this:
+E1208 05:08:15.158134       1 scraper.go:149] "Failed to scrape node" err="Get \"https://192.168.8.4:10250/metrics/resource\": tls: failed to verify certificate: x509: cannot validate certificate for 192.168.8.4 because it doesn't contain any IP SANs" node="worclustershire1"
+E1208 05:08:15.161853       1 scraper.go:149] "Failed to scrape node" err="Get \"https://192.168.8.6:10250/metrics/resource\": tls: failed to verify certificate: x509: cannot validate certificate for 192.168.8.6 because it doesn't contain any IP SANs" node="worclustershire3"
+E1208 05:08:15.172151       1 scraper.go:149] "Failed to scrape node" err="Get \"https://192.168.8.5:10250/metrics/resource\": tls: failed to verify certificate: x509: cannot validate certificate for 192.168.8.5 because it doesn't contain any IP SANs" node="worclustershire2"
