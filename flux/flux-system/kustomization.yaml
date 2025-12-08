@@ -8,10 +8,8 @@ resources:
   - gotk-sync.yaml
   - cert-manager-custom-resources.yaml
   - cert-manager.yaml
-
   # Removing this until I can find a sufficiently self-sovereign, free DNS provider.
   # - external-dns.yaml
-
   - imagepolicies.yaml
   - imagerepositories.yaml
   - imageupdateautomation.yaml
@@ -21,3 +19,5 @@ resources:
   - metallb.yaml
   - metallb-custom-resources.yaml
   - longhorn.yaml
+  - immich.yaml
+  - cnpg.yaml
