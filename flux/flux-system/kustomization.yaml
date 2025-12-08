@@ -21,4 +21,4 @@ resources:
   - longhorn.yaml
   - immich.yaml
   - cnpg.yaml
-  - metrics-server.yaml
+  # - metrics-server.yaml # Broken, see TODO in metrics-server dir.
