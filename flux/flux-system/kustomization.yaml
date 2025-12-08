@@ -21,3 +21,4 @@ resources:
   - longhorn.yaml
   - immich.yaml
   - cnpg.yaml
+  - metrics-server.yaml
