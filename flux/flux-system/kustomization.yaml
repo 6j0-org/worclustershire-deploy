@@ -22,3 +22,5 @@ resources:
   - immich.yaml
   - cnpg.yaml
   # - metrics-server.yaml # Broken, see TODO in metrics-server dir.
+
+  - youcandoithealth.yaml
