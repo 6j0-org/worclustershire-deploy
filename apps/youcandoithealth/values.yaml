@@ -2,6 +2,8 @@ replicaCount: 2
 image:
   repository: ghcr.io/ycdihealth/website
   tag: sha-81828ec7061852aae77a58c1b848f086e4434403
+service:
+  port: 5000
 ingress:
   enabled: true
   annotations:
@@ -68,18 +70,18 @@ resources: {}
   #   memory: 128Mi
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-startupProbe: null
-  # httpGet:
-  #   path: /
-  #   port: http
-livenessProbe: null
-  # httpGet:
-  #   path: /
-  #   port: http
-readinessProbe: null
-  # httpGet:
-  #   path: /
-  #   port: http
+startupProbe:
+  httpGet:
+    path: /
+    port: http
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
 
 # Environment variables
 # WARNING: never commit cleartext secrets to git! If you use `envSecret:` or `secrets:` below, it should be in a SOPS-encrypted file.
