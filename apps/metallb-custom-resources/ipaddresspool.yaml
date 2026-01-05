@@ -1,0 +1,9 @@
+# https://metallb.io/configuration/#defining-the-ips-to-assign-to-the-load-balancer-services
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: first-pool
+spec:
+  addresses:
+  - 192.168.8.120-192.168.8.129
+  # TODO: Add IPv6 addresses.
