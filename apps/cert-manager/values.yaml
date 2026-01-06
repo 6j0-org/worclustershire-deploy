@@ -1,13 +1,2 @@
 crds:
   enabled: true
-prometheus:
-  servicemonitor:
-    # TODO: We should flip this to true and see what happens?
-    enabled: false
-
-config:
-  featureGates:
-
-    # Disabling this feature, because it conflicts with ingress-nginx strict-validate-path-type.
-    # https://cert-manager.io/docs/releases/release-notes/release-notes-1.18/#option-1-disable-the-acmehttp01ingresspathtypeexact-feature-in-cert-manager
-    ACMEHTTP01IngressPathTypeExact: false
