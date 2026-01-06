@@ -4,3 +4,8 @@ prometheus:
   servicemonitor:
     # TODO: We should flip this to true and see what happens?
     enabled: false
+
+config:
+  featureGates:
+    # Disabling this feature, because it conflicts with ingress-nginx strict-validate-path-type.
+    ACMEHTTP01IngressPathTypeExact: false
