@@ -30,9 +30,10 @@ spec:
       - http01:
           ingress:
             ingressClassName: nginx
-        selector:
-          matchLabels:
-            "use-http01-solver": "true"
+        # Commenting this out, because generic app chart doesn't have an easy way to add labels to an ingress. I don't know if I like this pattern.
+        # selector:
+        #   matchLabels:
+        #     "use-http01-solver": "true"
       # - dns01:
       #     cloudflare:
       #       email: hostmaster@devops.coop
