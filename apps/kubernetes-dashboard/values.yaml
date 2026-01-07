@@ -20,4 +20,3 @@ app:
     tls:
       enabled: true
     annotations: {}
-      # kubernetes.io/tls-acme: "true"

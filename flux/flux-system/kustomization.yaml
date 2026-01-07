@@ -15,7 +15,7 @@ resources:
   - imageupdateautomation.yaml
   - ingress-nginx.yaml
   - sops-age.secrets.yaml
-  - kubernetes-dashboard.yaml
+  # - kubernetes-dashboard.yaml
   - metallb.yaml
   - metallb-custom-resources.yaml
   - longhorn.yaml
@@ -24,6 +24,4 @@ resources:
   # - metrics-server.yaml # Broken, see TODO in metrics-server dir.
 
   - youcandoithealth.yaml
-  - nextcloud.yaml
-# This shit is wack
-# - nextcloud-aio.yaml
+  # - nextcloud.yaml
