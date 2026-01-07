@@ -29,38 +29,3 @@ metadata:
 spec:
   image: ghcr.io/dfinity-ops/youcandoithealth
   interval: 1m0s
-  secretRef:
-    name: sa-github-api
----
-apiVersion: image.toolkit.fluxcd.io/v1beta2
-kind: ImageRepository
-metadata:
-  name: nextcloud-aio
-  namespace: flux-system
-spec:
-  image: ghcr.io/dfinity-ops/nextcloud-aio
-  interval: 1m0s
-  secretRef:
-    name: sa-github-api
----
-apiVersion: image.toolkit.fluxcd.io/v1beta2
-kind: ImageRepository
-metadata:
-  name: nextcloud-test
-  namespace: flux-system
-spec:
-  image: ghcr.io/dfinity-ops/nextcloud-test
-  interval: 1m0s
-  secretRef:
-    name: sa-github-api
----
-apiVersion: image.toolkit.fluxcd.io/v1beta2
-kind: ImageRepository
-metadata:
-  name: nextcloud
-  namespace: flux-system
-spec:
-  image: ghcr.io/dfinity-ops/nextcloud
-  interval: 1m0s
-  secretRef:
-    name: sa-github-api
