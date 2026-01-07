@@ -24,6 +24,7 @@ resources:
   # - metrics-server.yaml # Broken, see TODO in metrics-server dir.
 
   - youcandoithealth.yaml
-
-  # This shit is wack
-  # - nextcloud-aio.yaml
+  - nextcloud-test.yaml
+  - nextcloud.yaml
+# This shit is wack
+# - nextcloud-aio.yaml
