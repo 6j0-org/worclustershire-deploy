@@ -27,5 +27,5 @@ metadata:
   name: youcandoithealth
   namespace: flux-system
 spec:
-  image: ghcr.io/dfinity-ops/youcandoithealth
+  image: ghcr.io/ycdihealth/website
   interval: 1m0s
