@@ -19,6 +19,5 @@ app:
       scope: cluster
     tls:
       enabled: true
-    annotations:
-      cert-manager.io/cluster-issuer: letsencrypt
-      kubernetes.io/tls-acme: "true"
+    annotations: {}
+      # kubernetes.io/tls-acme: "true"
