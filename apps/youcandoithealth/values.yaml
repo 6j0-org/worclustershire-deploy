@@ -6,9 +6,9 @@ service:
   port: 5000
 ingress:
   enabled: true
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt
-    kubernetes.io/tls-acme: "true"
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt
+    # kubernetes.io/tls-acme: "true"
   labels:
     use-http01-solver: "true"
   hosts:
@@ -16,10 +16,10 @@ ingress:
       paths:
         - path: /
           pathType: ImplementationSpecific
-  tls:
-    - secretName: youcandoithealth-tls
-      hosts:
-        - youcandoithealth.com
+  tls: []
+  #   - secretName: youcandoithealth-tls
+  #     hosts:
+  #       - youcandoithealth.com
 
 # -- Expose the service via gateVway-api HTTPRoute
 # Requires Gateway API resources and suitable controller installed within the cluster
