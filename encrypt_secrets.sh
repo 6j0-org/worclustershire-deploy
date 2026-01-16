@@ -7,7 +7,7 @@ set -Eeuo pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 while read -r f; do
-  echo "# ${f}"
+  # shellcheck disable=SC2094
   sops --filename-override "${f%%.decrypted}" -e "${f}" > "${f%%.decrypted}"
-  #rm "${SCRIPT_DIR}/apps/${app_name}/helm_secrets.yaml.decrypted"
-done < <(find "${SCRIPT_DIR}" -name '*helm_secrets.yaml.decrypted')
+  rm "${f}"
+done < <(find "${SCRIPT_DIR}" -name '*.yaml.decrypted')
