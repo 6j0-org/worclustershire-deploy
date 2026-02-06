@@ -14,3 +14,19 @@ spec:
   policy:
     numerical:
       order: asc
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: loki
+  namespace: flux-system
+spec:
+  filterTags:
+    extract: $ts
+    pattern: ^dev-[a-f0-9]+-(?P<ts>[0-9]+)
+  imageRepositoryRef:
+    name: loki
+    namespace: flux-system
+  policy:
+    numerical:
+      order: asc

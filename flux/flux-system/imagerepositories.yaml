@@ -7,3 +7,14 @@ metadata:
 spec:
   image: ghcr.io/ycdihealth/website
   interval: 1m0s
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: loki
+  namespace: flux-system
+spec:
+  image: ghcr.io/dfinity-ops/loki
+  interval: 1m0s
+  secretRef:
+    name: sa-github-api

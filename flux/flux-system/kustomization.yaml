@@ -27,3 +27,4 @@ resources:
   - nextcloud.yaml
   - descheduler.yaml
   - kube-prometheus-stack.yaml
+  - loki.yaml
