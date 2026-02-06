@@ -27,4 +27,5 @@ resources:
   - nextcloud.yaml
   - descheduler.yaml
   - kube-prometheus-stack.yaml
-  - loki.yaml
+  # TODO: Needs S3 object storage
+  # - loki.yaml
