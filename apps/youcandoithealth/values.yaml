@@ -1,7 +1,7 @@
 replicaCount: 2
 image:
   repository: ghcr.io/ycdihealth/website
-  tag: sha-81828ec7061852aae77a58c1b848f086e4434403 # {"$imagepolicy": "flux-system:youcandoithealth:tag"}
+  tag: dev-3716004-1769236998 # {"$imagepolicy": "flux-system:youcandoithealth:tag"}
 service:
   port: 5000
 ingress:
@@ -20,7 +20,6 @@ ingress:
     - secretName: youcandoithealth-tls
       hosts:
         - youcandoithealth.com
-
 # -- Expose the service via gateVway-api HTTPRoute
 # Requires Gateway API resources and suitable controller installed within the cluster
 # (see: https://gateway-api.sigs.k8s.io/guides/)
@@ -31,18 +30,18 @@ httpRoute:
   annotations: {}
   # Which Gateways this Route is attached to.
   parentRefs:
-  - name: gateway
-    sectionName: http
-    # namespace: default
+    - name: gateway
+      sectionName: http
+      # namespace: default
   # Hostnames matching HTTP header.
   hostnames:
-  - chart-example.local
+    - chart-example.local
   # List of rules and filters applied.
   rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /headers
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /headers
   #   filters:
   #   - type: RequestHeaderModifier
   #     requestHeaderModifier:
@@ -58,19 +57,17 @@ httpRoute:
   #     headers:
   #     - name: version
   #       value: v2
-
 resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
+# We usually recommend not to specify default resources and to leave this as a conscious
+# choice for the user. This also increases chances charts run on environments with little
+# resources, such as Minikube. If you do want to specify resources, uncomment the following
+# lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+# limits:
+#   cpu: 100m
+#   memory: 128Mi
+# requests:
+#   cpu: 100m
+#   memory: 128Mi
 
 # Environment variables
 # WARNING: never commit cleartext secrets to git! If you use `envSecret:` or `secrets:` below, it should be in a SOPS-encrypted file.
