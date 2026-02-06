@@ -6,7 +6,6 @@ labels:
 resources:
   - gotk-components.yaml
   - gotk-sync.yaml
-
   - cert-manager-custom-resources.yaml
   - cert-manager.yaml
   # Removing this until I can find a sufficiently self-sovereign, free DNS provider.
@@ -27,3 +26,4 @@ resources:
   - youcandoithealth.yaml
   - nextcloud.yaml
   - descheduler.yaml
+  - kube-prometheus-stack.yaml
