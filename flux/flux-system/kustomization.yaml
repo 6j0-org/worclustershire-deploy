@@ -25,5 +25,5 @@ resources:
   # - metrics-server.yaml # Broken, see TODO in metrics-server dir.
 
   - youcandoithealth.yaml
-  # - nextcloud.yaml
+  - nextcloud.yaml
   - descheduler.yaml
