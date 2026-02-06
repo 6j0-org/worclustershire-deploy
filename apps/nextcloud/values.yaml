@@ -105,10 +105,10 @@ ingress:
   #    location ~ ^/(?:autotest|occ|issue|indie|db_|console) {
   #      deny all;
   #    }
-  # tls:
-  #   - secretName: nextcloud-tls
-  #     hosts:
-  #       - nextcloud.6j0.org
+  tls:
+    - secretName: nextcloud-tls
+      hosts:
+        - nextcloud.6j0.org
   labels: {}
   path: /
   pathType: Prefix
