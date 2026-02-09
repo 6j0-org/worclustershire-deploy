@@ -29,3 +29,5 @@ resources:
   - kube-prometheus-stack.yaml
   # TODO: Needs S3 object storage
   # - loki.yaml
+
+  - eg.yaml
