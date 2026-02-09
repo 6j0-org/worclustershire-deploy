@@ -30,4 +30,4 @@ resources:
   # TODO: Needs S3 object storage
   # - loki.yaml
 
-  - eg.yaml
+  # - eg.yaml
