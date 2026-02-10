@@ -31,3 +31,4 @@ resources:
   # - loki.yaml
 
   - eg.yaml
+  - eg-custom-resources.yaml
