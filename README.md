@@ -102,4 +102,3 @@ To deploy an application with a Helm chart:
    sops apps/your_app/helm_secrets.yaml
    ```
 1. Commit and push your changes, and your app should deploy.
-
