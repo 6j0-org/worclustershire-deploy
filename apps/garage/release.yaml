@@ -1,0 +1,30 @@
+# https://fluxcd.io/flux/components/helm/helmreleases/
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: garage
+spec:
+  # HelmRepository example
+  # chart:
+  #   spec:
+  #     chart: garage
+  #     version: 0.0.0
+  #     sourceRef:
+  #       kind: HelmRepository
+  #       name: prometheus-community
+
+  # OCIRepository example
+  # chartRef:
+  #   kind: OCIRepository
+  #   name: devopscoop-app
+  #   # TODO: Is namespace needed?
+  #   # namespace: garage
+  interval: 10m
+  valuesFrom:
+    - kind: ConfigMap
+      name: garage-values
+    - kind: Secret
+      name: garage-secrets
+  chartRef:
+    kind: OCIRepository
+    name: garage-garage
