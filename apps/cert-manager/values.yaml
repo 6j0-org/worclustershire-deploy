@@ -1,2 +1,9 @@
+# dyff between <(yq . <(helm show values oci://quay.io/jetstack/charts/cert-manager --version v1.19.2)) <(yq eval '. * load("values.yaml")' <(helm show values oci://quay.io/jetstack/charts/cert-manager --version v1.19.2))
 crds:
   enabled: true
+
+# https://gateway.envoyproxy.io/docs/tasks/security/tls-cert-manager/#deploying-cert-manager
+config:
+  apiVersion: controller.config.cert-manager.io/v1alpha1
+  kind: ControllerConfiguration
+  enableGatewayAPI: true
