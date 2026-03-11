@@ -33,3 +33,4 @@ resources:
   - eg.yaml
   - eg-custom-resources.yaml
   - garage.yaml
+  - hatsmith.yaml
