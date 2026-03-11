@@ -1,7 +1,7 @@
 replicaCount: 2
 image:
   repository: ghcr.io/ycdihealth/website
-  tag: dev-3716004-1769236998 # {"$imagepolicy": "flux-system:youcandoithealth:tag"}
+  tag: dev-5a0e8e6-1771959563 # {"$imagepolicy": "flux-system:youcandoithealth:tag"}
 service:
   port: 5000
 ingress:
@@ -42,21 +42,21 @@ httpRoute:
         - path:
             type: PathPrefix
             value: /headers
-  #   filters:
-  #   - type: RequestHeaderModifier
-  #     requestHeaderModifier:
-  #       set:
-  #       - name: My-Overwrite-Header
-  #         value: this-is-the-only-value
-  #       remove:
-  #       - User-Agent
-  # - matches:
-  #   - path:
-  #       type: PathPrefix
-  #       value: /echo
-  #     headers:
-  #     - name: version
-  #       value: v2
+            #   filters:
+            #   - type: RequestHeaderModifier
+            #     requestHeaderModifier:
+            #       set:
+            #       - name: My-Overwrite-Header
+            #         value: this-is-the-only-value
+            #       remove:
+            #       - User-Agent
+            # - matches:
+            #   - path:
+            #       type: PathPrefix
+            #       value: /echo
+            #     headers:
+            #     - name: version
+            #       value: v2
 resources: {}
 # We usually recommend not to specify default resources and to leave this as a conscious
 # choice for the user. This also increases chances charts run on environments with little
