@@ -56,3 +56,6 @@ httpRoute:
   #     headers:
   #     - name: version
   #       value: v2
+startupProbe: {}
+readinessProbe: {}
+livenessProbe: {}
