@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: ghcr.io/mrtechtroid/hatsmith@sha256
-  tag: 5cf47cbf61297b3d6610b54e05004490899c3692e89495537f92870e14b31116
+  tag: d68cfea64828558c2907646a954d0b873f82b0c0c9541e7aa05e2e3a6a3d83f4
 service:
   port: 3991
 ingress:
