@@ -2,8 +2,6 @@ replicaCount: 1
 image:
   repository: ghcr.io/mrtechtroid/hatsmith@sha256
   tag: d68cfea64828558c2907646a954d0b873f82b0c0c9541e7aa05e2e3a6a3d83f4
-service:
-  port: 3991
 ingress:
   enabled: true
   annotations:
@@ -56,6 +54,3 @@ httpRoute:
   #     headers:
   #     - name: version
   #       value: v2
-startupProbe: {}
-readinessProbe: {}
-livenessProbe: {}
