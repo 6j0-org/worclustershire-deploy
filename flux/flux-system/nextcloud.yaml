@@ -4,6 +4,9 @@ metadata:
   name: nextcloud
   namespace: flux-system
 spec:
+  dependsOn:
+    - name: garage
+    - name: cnpg
   interval: 10m0s
   sourceRef:
     kind: GitRepository

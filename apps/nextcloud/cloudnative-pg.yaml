@@ -1,0 +1,14 @@
+# Cobbled together from various bits of examples here: https://cloudnative-pg.io/docs/1.28/samples#basics
+
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: nextcloud
+spec:
+  instances: 3
+  # TODO: Will this allow us to do cluster upgrades without having to manually switchover databases?
+  # primaryUpdateStrategy: unsupervised
+  storage:
+    # Using the "dangerous" SC, because CNPG has its own clustering strategy.
+    storageClass: longhorn-crypto-global-dangerous
+    size: 1Gi

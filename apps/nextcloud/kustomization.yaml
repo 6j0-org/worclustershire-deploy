@@ -9,6 +9,7 @@ namespace: nextcloud
 
 resources:
   - namespace.yaml
+  - cloudnative-pg.yaml
   - helmrepo.yaml
   - release.yaml
 configMapGenerator:
