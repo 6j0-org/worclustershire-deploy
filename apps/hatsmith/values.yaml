@@ -7,6 +7,8 @@ ingress:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt
     kubernetes.io/tls-acme: "true"
+  labels:
+    use-http01-solver: "true"
   hosts:
     - host: hatsmith.6j0.org
       paths:
