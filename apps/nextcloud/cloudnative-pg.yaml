@@ -1,7 +1,7 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: nextcloud
+  name: db
 spec:
   backup:
     volumeSnapshot:
@@ -11,7 +11,7 @@ spec:
       database: nextcloud
       owner: nextcloud
       secret:
-        name: nextcloud-db-user
+        name: db-user
   instances: 3
   monitoring:
     customQueriesConfigMap:
