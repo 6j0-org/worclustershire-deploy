@@ -53,7 +53,7 @@ externalDatabase:
   enabled: true
   type: postgresql
   ## Database host. You can optionally include a colon delimited port like "myhost:1234"
-  host: ""
+  host: "nextcloud-rw.nextcloud.svc.cluster.local"
 
   ## Database user
   user: nextcloud
@@ -66,12 +66,10 @@ externalDatabase:
 
   ## Use a existing secret
   existingSecret:
-    enabled: false
-    # secretName: nameofsecret
-    usernameKey: db-username
-    passwordKey: db-password
-    # hostKey: db-hostname-or-ip
-    # databaseKey: db-name
+    enabled: true
+    secretName: nextcloud-db-user
+    usernameKey: username
+    passwordKey: password
 
 ##
 ## External Redis configuration
