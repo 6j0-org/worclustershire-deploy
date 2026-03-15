@@ -5,8 +5,7 @@ metadata:
 spec:
   backup:
     volumeSnapshot:
-      enabled: true
-      volumeSnapshotClass: longhorn-crypto-global-dangerous
+      className: longhorn-crypto-global-dangerous
   bootstrap:
     initdb:
       database: nextcloud
@@ -17,21 +16,21 @@ spec:
   monitoring:
     customQueriesConfigMap:
       - name: cnpg-prometheus-apiserver
-        namespace: cnpg-system
+        includeRaw: false
   postgresql:
     parameters:
-      checkpoint_completion_target: 0.9
-      default_statistics_target: 100
-      effective_cache_size: 1GB
-      effective_io_concurrency: 200
-      maintenance_work_mem: 64MB
+      checkpoint_completion_target: "0.9"
+      default_statistics_target: "100"
+      effective_cache_size: "1GB"
+      effective_io_concurrency: "200"
+      maintenance_work_mem: "64MB"
       max_connections: "200"
-      max_wal_size: 4GB
-      min_wal_size: 1GB
-      random_page_cost: 1.1
-      shared_buffers: 256MB
-      wal_buffers: 16MB
-      work_mem: 4MB
+      max_wal_size: "4GB"
+      min_wal_size: "1GB"
+      random_page_cost: "1.1"
+      shared_buffers: "256MB"
+      wal_buffers: "16MB"
+      work_mem: "4MB"
   resources:
     limits:
       memory: 2Gi
