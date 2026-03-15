@@ -16,7 +16,6 @@ spec:
   monitoring:
     customQueriesConfigMap:
       - name: cnpg-prometheus-apiserver
-        includeRaw: false
   postgresql:
     parameters:
       checkpoint_completion_target: "0.9"
