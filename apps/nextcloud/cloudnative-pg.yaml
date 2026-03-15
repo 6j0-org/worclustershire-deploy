@@ -14,15 +14,10 @@ spec:
       secret:
         name: nextcloud-db-user
   instances: 3
-  maintenanceWindow:
-    hour: -1
-    weekdays:
-      - "1-7"
   monitoring:
     customQueriesConfigMap:
       - name: cnpg-prometheus-apiserver
         namespace: cnpg-system
-    enabled: true
   postgresql:
     parameters:
       checkpoint_completion_target: 0.9
@@ -37,17 +32,12 @@ spec:
       shared_buffers: 256MB
       wal_buffers: 16MB
       work_mem: 4MB
-  replicationSlots:
-    highAvailability:
-      enabled: true
   resources:
     limits:
-      cpu: "2"
       memory: 2Gi
     requests:
       cpu: "100m"
       memory: 512Mi
   storage:
-    resizeVolumeInProgress: true
     size: 10Gi
     storageClass: longhorn-crypto-global-dangerous
