@@ -9,6 +9,7 @@ namespace: nextcloud
 
 resources:
   - namespace.yaml
+  - nextcloud-db-user.secrets.yaml
   - cloudnative-pg.yaml
   - helmrepo.yaml
   - release.yaml
