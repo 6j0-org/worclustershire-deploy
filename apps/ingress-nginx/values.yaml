@@ -4,7 +4,7 @@ controller:
   config:
 
     # Snippets not working? You probably need to enable this.
-    # allow-snippet-annotations: "true"
+    allow-snippet-annotations: "true"
 
     # This defaults to HTTP 503, but HTTP 429 (Too Many Requests) is the correct code, and it makes troubleshooting much clearer.
     limit-req-status-code: "429"
