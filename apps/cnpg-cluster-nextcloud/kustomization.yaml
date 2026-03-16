@@ -8,15 +8,6 @@ kind: Kustomization
 namespace: nextcloud
 
 resources:
-  - helmrepo.yaml
-  - release.yaml
-configMapGenerator:
-  - name: nextcloud-values
-    files:
-      - values.yaml=values.yaml
-secretGenerator:
-  - name: nextcloud-secrets
-    files:
-      - values.yaml=helm_secrets.yaml
-configurations:
-  - kustomizeconfig.yaml
+  - namespace.yaml
+  - db-user.secrets.yaml
+  - cloudnative-pg.yaml

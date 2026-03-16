@@ -24,6 +24,7 @@ resources:
   # - metrics-server.yaml # Broken, see TODO in metrics-server dir.
 
   - youcandoithealth.yaml
+  - cnpg-cluster-nextcloud.yaml
   - nextcloud.yaml
   - descheduler.yaml
   - kube-prometheus-stack.yaml
