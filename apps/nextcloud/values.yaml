@@ -51,6 +51,8 @@ nextcloud:
       port: "3900"
       region: "garage"
       bucket: "nextcloud"
+      # Have to use path style or we get errors like (note DNS style bucket prefix):
+      # Creation of bucket "nextcloud" failed. Error executing "CreateBucket" on "http://nextcloud.garage.garage.svc.cluster.local:3900/"
       usePathStyle: true
       # The Longhorn PVCs are already encrypted, so we're opting to skip encryption here.
 
