@@ -25,7 +25,7 @@ resources:
 
   - youcandoithealth.yaml
   - cnpg-cluster-nextcloud.yaml
-  # - nextcloud.yaml
+  - nextcloud.yaml
   - descheduler.yaml
   - kube-prometheus-stack.yaml
   # TODO: Needs S3 object storage
