@@ -51,6 +51,7 @@ nextcloud:
       port: "3900"
       region: "garage"
       bucket: "nextcloud"
+      usePathStyle: true
       # The Longhorn PVCs are already encrypted, so we're opting to skip encryption here.
 
 internalDatabase:
