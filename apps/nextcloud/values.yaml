@@ -2,9 +2,7 @@
 # dyff between <(yq . <(helm show values nextcloud/nextcloud --version 8.9.0)) <(yq eval '. * load("values.yaml")' <(helm show values nextcloud/nextcloud --version 8.9.0))
 # vim -d <(yq . <(helm show values nextcloud/nextcloud --version 8.9.0)) values.yaml
 
-# TODO: This should be more than 1
-replicaCount: 1
-
+replicaCount: 2
 
 ingress:
   enabled: true
