@@ -35,3 +35,4 @@ resources:
   - eg-custom-resources.yaml
   - garage.yaml
   - hatsmith.yaml
+  - cnpg-grafana.yaml
