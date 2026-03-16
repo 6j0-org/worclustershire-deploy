@@ -1,6 +1,6 @@
 # Show differences between this file and default values:
 # dyff between <(yq . <(helm show values nextcloud/nextcloud --version 8.9.0)) <(yq eval '. * load("values.yaml")' <(helm show values nextcloud/nextcloud --version 8.9.0))
-# vim -d <(yq . <(helm show values nextcloud/nextcloud --version 8.9.0)) <(yq eval '. * load("values.yaml")' <(helm show values nextcloud/nextcloud --version 8.9.0))
+# vim -d <(yq . <(helm show values nextcloud/nextcloud --version 8.9.0)) values.yaml
 
 replicaCount: 2
 
@@ -50,6 +50,8 @@ nextcloud:
       # The Longhorn PVCs are already encrypted, so we're opting to skip encryption here.
 
 # TODO: configure CNPG database
+internalDatabase:
+  enabled: false
 externalDatabase:
   enabled: true
   type: postgresql
