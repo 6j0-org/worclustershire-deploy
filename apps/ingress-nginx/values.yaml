@@ -11,7 +11,7 @@ controller:
 
     # Uncomment this if you DGAF about security and you want to have variables in your redirect urls.
     # https://github.com/kubernetes/ingress-nginx/issues/11175
-    # annotations-risk-level: Critical
+    annotations-risk-level: Critical
 
   ingressClassResource:
 
