@@ -43,6 +43,17 @@ kubectl exec --stdin --tty -n garage garage-0 -- ./garage bucket allow \
   --key nextcloud
 ```
 
+Troubleshooting
+
+```
+kubectl run s3ls --image=amazon/aws-cli:2.15.0 --rm -it --restart=Never -- \
+  --env="AWS_ACCESS_KEY_ID=GKe214ad1a729b32f06ba08766" \
+  --env="AWS_SECRET_ACCESS_KEY=REDACTED" \
+  -- aws --endpoint-url http://garage.garage.svc.cluster.local:3900 \
+  --no-verify-ssl \
+  s3 ls s3://nextcloud/ --recursive
+```
+
 References:
 - https://garagehq.deuxfleurs.fr/documentation/cookbook/kubernetes/
 - https://garagehq.deuxfleurs.fr/documentation/quick-start/#creating-a-cluster-layout
