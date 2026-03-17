@@ -4,21 +4,6 @@ kind: HelmRelease
 metadata:
   name: cnpg
 spec:
-  # HelmRepository example
-  # chart:
-  #   spec:
-  #     chart: cnpg
-  #     version: 0.0.0
-  #     sourceRef:
-  #       kind: HelmRepository
-  #       name: prometheus-community
-
-  # OCIRepository example
-  # chartRef:
-  #   kind: OCIRepository
-  #   name: devopscoop-app
-  #   # TODO: Is namespace needed?
-  #   # namespace: cnpg
   interval: 10m
   valuesFrom:
     - kind: ConfigMap
@@ -28,7 +13,7 @@ spec:
   chart:
     spec:
       chart: cloudnative-pg
-      version: 0.26.1
+      version: 0.27.1
       sourceRef:
         kind: HelmRepository
         name: cnpg
