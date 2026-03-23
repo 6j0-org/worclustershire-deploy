@@ -6,8 +6,6 @@ labels:
 resources:
   - gotk-components.yaml
   - gotk-sync.yaml
-  # Setting resource requests and limits for flux components.
-  - flux-resources-patch.yaml
   - cert-manager-custom-resources.yaml
   - cert-manager.yaml
   # Removing this until I can find a sufficiently self-sovereign, free DNS provider.
@@ -37,3 +35,5 @@ resources:
   - eg-custom-resources.yaml
   - garage.yaml
   - hatsmith.yaml
+patches:
+  - path: flux-resources-patch.yaml
