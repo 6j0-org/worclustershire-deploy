@@ -12,6 +12,9 @@ spec:
             requests:
               cpu: 10m
               memory: 209Mi
+            limits:
+              cpu: null
+              memory: 209Mi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -26,6 +29,9 @@ spec:
           resources:
             requests:
               cpu: 10m
+              memory: 100Mi
+            limits:
+              cpu: null
               memory: 100Mi
 ---
 apiVersion: apps/v1
@@ -42,6 +48,9 @@ spec:
             requests:
               cpu: 10m
               memory: 1069Mi
+            limits:
+              cpu: null
+              memory: 1069Mi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -56,6 +65,9 @@ spec:
           resources:
             requests:
               cpu: 23m
+              memory: 234Mi
+            limits:
+              cpu: null
               memory: 234Mi
 ---
 apiVersion: apps/v1
@@ -72,6 +84,9 @@ spec:
             requests:
               cpu: 10m
               memory: 100Mi
+            limits:
+              cpu: null
+              memory: 100Mi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -86,4 +101,7 @@ spec:
           resources:
             requests:
               cpu: 10m
+              memory: 328Mi
+            limits:
+              cpu: null
               memory: 328Mi
