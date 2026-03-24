@@ -35,5 +35,5 @@ resources:
   - eg-custom-resources.yaml
   - garage.yaml
   - hatsmith.yaml
-patches:
-  - path: flux-resources-patch.yaml
+patchesStrategicMerge:
+  - flux-resources-patch.yaml
