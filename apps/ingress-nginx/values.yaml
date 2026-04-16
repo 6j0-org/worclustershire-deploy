@@ -37,7 +37,9 @@ controller:
     externalTrafficPolicy: "Local"
 
     ipFamilies:
+    - IPv4
     - IPv6
+    ipFamilyPolicy: PreferDualStack
 
 # Example of how to expose a TCP service
 # tcp:
