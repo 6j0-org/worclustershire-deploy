@@ -6,4 +6,4 @@ metadata:
 spec:
   addresses:
   - 192.168.8.10-192.168.8.19
-  # TODO: Add IPv6 addresses.
+  - 2603:8001:5800:8cf::10-2603:8001:5800:8cf::19
