@@ -1,7 +1,7 @@
 replicaCount: 2
 image:
   repository: ghcr.io/ycdihealth/website
-  tag: dev-5a0e8e6-1771959563 # {"$imagepolicy": "flux-system:youcandoithealth:tag"}
+  tag: dev-3ba8e63-1777492822 # {"$imagepolicy": "flux-system:youcandoithealth:tag"}
 service:
   port: 5000
 ingress:
