@@ -15,7 +15,6 @@ resources:
   - imageupdateautomation.yaml
   - ingress-nginx.yaml
   - sops-age.secrets.yaml
-  # - kubernetes-dashboard.yaml
   - metallb.yaml
   - metallb-custom-resources.yaml
   - longhorn.yaml
