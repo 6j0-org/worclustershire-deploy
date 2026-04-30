@@ -7,6 +7,7 @@ spec:
   dependsOn:
     - name: garage
     - name: cnpg-cluster-nextcloud
+    - name: valkey-nextcloud
   interval: 10m0s
   sourceRef:
     kind: GitRepository
