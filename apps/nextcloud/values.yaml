@@ -70,7 +70,8 @@ externalDatabase:
     usernameKey: username
     passwordKey: password
 persistence:
-  # TODO: If this is enabled, we can only have 1 replica? MultiAttach error.
   enabled: true
-  storageClass: "longhorn-crypto-global"
+  storageClass: "longhorn-crypto-rwx"
   size: 8Gi
+redis:
+  enabled: false
