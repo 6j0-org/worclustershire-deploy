@@ -40,6 +40,9 @@ ingress:
         - nextcloud.6j0.org
 nextcloud:
   host: nextcloud.6j0.org
+  extraEnv:
+    - name: NEXTCLOUD_INIT_LOCK
+      value: "false"
   objectStore:
     s3:
       enabled: true
