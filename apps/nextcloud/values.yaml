@@ -2,7 +2,7 @@
 # dyff between <(yq . <(helm show values nextcloud/nextcloud --version 8.9.0)) <(yq eval '. * load("values.yaml")' <(helm show values nextcloud/nextcloud --version 8.9.0))
 # vim -d <(yq . <(helm show values nextcloud/nextcloud --version 8.9.0)) values.yaml
 
-replicaCount: 2
+replicaCount: 1
 
 ingress:
   enabled: true
@@ -40,9 +40,6 @@ ingress:
         - nextcloud.6j0.org
 nextcloud:
   host: nextcloud.6j0.org
-  extraEnv:
-    - name: NEXTCLOUD_INIT_LOCK
-      value: "false"
   objectStore:
     s3:
       enabled: true
@@ -74,8 +71,7 @@ externalDatabase:
     passwordKey: password
 persistence:
   enabled: true
-  storageClass: "longhorn-crypto-rwx"
-  accessMode: ReadWriteMany
+  storageClass: "longhorn-crypto-global"
   size: 8Gi
 redis:
   enabled: false
