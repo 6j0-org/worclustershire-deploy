@@ -67,16 +67,20 @@ spec:
               cpu: 500m
               memory: 1Gi
           livenessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 10
+            exec:
+              command:
+                - sh
+                - -c
+                - curl -fs http://127.0.0.1:8200/info
+            initialDelaySeconds: 15
             periodSeconds: 30
             timeoutSeconds: 5
           readinessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - curl -fs http://127.0.0.1:8200/info
+            initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 3
