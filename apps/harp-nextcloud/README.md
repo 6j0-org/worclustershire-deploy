@@ -19,8 +19,6 @@ kubectl exec -n nextcloud deploy/nextcloud -- \
     k8s_harp "K8s HaRP" "kubernetes-install" "http" \
     "harp-nextcloud.nextcloud.svc.cluster.local:8780" \
     "https://nextcloud.6j0.org" \
-    --k8s \
-    --k8s_expose_type=clusterip \
     --harp \
     --harp_shared_key "$(kubectl get secret -n nextcloud harp-nextcloud-secret -o jsonpath='{.data.shared-key}' | base64 -d)" \
     --harp_frp_address "harp-nextcloud.nextcloud.svc.cluster.local:8782" \
