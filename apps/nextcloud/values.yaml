@@ -72,6 +72,7 @@ externalDatabase:
 persistence:
   enabled: true
   storageClass: "longhorn-crypto-rwx"
+  accessMode: ReadWriteMany
   size: 8Gi
 redis:
   enabled: false
