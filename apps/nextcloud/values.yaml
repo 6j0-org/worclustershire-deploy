@@ -12,6 +12,7 @@ ingress:
   enabled: true
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: 4G
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
     kubernetes.io/tls-acme: "true"
     cert-manager.io/cluster-issuer: letsencrypt
     nginx.ingress.kubernetes.io/server-snippet: |-
@@ -37,6 +38,14 @@ ingress:
       }
       location ~ ^/(?:autotest|occ|issue|indie|db_|console) {
         deny all;
+      }
+      location /exapps/ {
+        proxy_pass http://harp-nextcloud.nextcloud.svc.cluster.local:8780/exapps/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 1800s;
       }
   tls:
     - secretName: nextcloud-tls

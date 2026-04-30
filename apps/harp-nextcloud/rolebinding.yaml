@@ -1,0 +1,16 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: harp-nextcloud
+  namespace: nextcloud
+  labels:
+    app.kubernetes.io/name: harp
+    app.kubernetes.io/instance: harp-nextcloud
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: harp-nextcloud
+subjects:
+  - kind: ServiceAccount
+    name: harp-nextcloud
+    namespace: nextcloud
