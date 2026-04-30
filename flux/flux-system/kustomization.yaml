@@ -26,7 +26,7 @@ resources:
 
   - cnpg-cluster-nextcloud.yaml
   - valkey-nextcloud.yaml
-  # - nextcloud.yaml
+  - nextcloud.yaml
 
   - descheduler.yaml
   - kube-prometheus-stack.yaml
