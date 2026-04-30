@@ -2,6 +2,10 @@
 # dyff between <(yq . <(helm show values nextcloud/nextcloud --version 8.9.0)) <(yq eval '. * load("values.yaml")' <(helm show values nextcloud/nextcloud --version 8.9.0))
 # vim -d <(yq . <(helm show values nextcloud/nextcloud --version 8.9.0)) values.yaml
 
+# Multi-replica HA is not supported because the Nextcloud Docker entrypoint uses flock() for init locking,
+# which fails with "Input/output error" on NFS-backed RWX volumes (Longhorn share manager).
+# The NEXTCLOUD_INIT_LOCK env var was removed in newer Nextcloud Docker images, so it cannot be disabled.
+# See: https://github.com/nextcloud/docker/blob/master/docker-entrypoint.sh
 replicaCount: 1
 
 ingress:
