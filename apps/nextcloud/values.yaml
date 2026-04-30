@@ -75,3 +75,12 @@ persistence:
   size: 8Gi
 redis:
   enabled: false
+
+externalRedis:
+  enabled: true
+  host: "valkey-nextcloud"
+  port: "6379"
+  existingSecret:
+    enabled: true
+    secretName: valkey-nextcloud-auth
+    passwordKey: default-password
