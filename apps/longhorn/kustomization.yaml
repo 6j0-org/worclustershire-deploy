@@ -9,6 +9,7 @@ namespace: longhorn-system
 
 resources:
   - evanstest.secrets.yaml
+  - auth.secrets.yaml
   - longhorn-crypto.secrets.yaml
   - release.yaml
   - longhorn-crypto-global.sc.yaml
