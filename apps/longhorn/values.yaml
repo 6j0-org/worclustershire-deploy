@@ -12,3 +12,12 @@ defaultBackupStore:
   # https://longhorn.io/docs/1.10.1/snapshots-and-backups/backup-and-restore/set-backup-target/#enable-virtual-hosted-style-access-for-s3-compatible-backupstore
   backupTarget: "s3://evanstest@us-west-1/"
   backupTargetCredentialSecret: evanstest
+
+ingress:
+  enabled: true
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/tls-acme: "true"
+  ingressClassName: nginx
+  host: longhorn.6j0.org
+  tls: true
