@@ -23,12 +23,10 @@ resources:
   # - metrics-server.yaml # Broken, see TODO in metrics-server dir.
 
   - youcandoithealth.yaml
-
   # - cnpg-cluster-nextcloud.yaml
   # - valkey-nextcloud.yaml
   # - nextcloud.yaml
   # - harp-nextcloud.yaml
-
   - descheduler.yaml
   - kube-prometheus-stack.yaml
   # TODO: Needs S3 object storage
@@ -38,5 +36,6 @@ resources:
   - eg-custom-resources.yaml
   - garage.yaml
   - hatsmith.yaml
+  - radicale.yaml
 patchesStrategicMerge:
   - flux-resources-patch.yaml

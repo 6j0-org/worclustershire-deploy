@@ -1,0 +1,30 @@
+# https://fluxcd.io/flux/components/helm/helmreleases/
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: radicale
+spec:
+  # HelmRepository example
+  # chart:
+  #   spec:
+  #     chart: radicale
+  #     version: 0.0.0
+  #     sourceRef:
+  #       kind: HelmRepository
+  #       name: prometheus-community
+
+  # OCIRepository example
+  # chartRef:
+  #   kind: OCIRepository
+  #   name: devopscoop-app
+  #   # TODO: Is namespace needed?
+  #   # namespace: radicale
+  interval: 10m
+  valuesFrom:
+    - kind: ConfigMap
+      name: radicale-values
+    - kind: Secret
+      name: radicale-secrets
+  chartRef:
+    kind: OCIRepository
+    name: devopscoop-app

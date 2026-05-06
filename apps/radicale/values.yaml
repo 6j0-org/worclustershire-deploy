@@ -1,0 +1,180 @@
+workloadType: "StatefulSet"
+
+statefulSet:
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: "standard"
+      resources:
+        requests:
+          storage: 100Mi
+
+replicaCount: 1
+
+# This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+image:
+  repository: ghcr.io/kozea/radicale@sha256
+  tag: "9c162b6258683aa347532f2300060910e100f728ee5e636a43e1dcf016556c0b" # 3.7.2
+
+service:
+  port: 5232
+
+# This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
+ingress:
+  enabled: true
+  className: ""
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: radicale.6j0.org
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls:
+    - secretName: radicale-tls
+      hosts:
+        - radicale.6j0.org
+
+# -- Expose the service via gateway-api HTTPRoute
+# Requires Gateway API resources and suitable controller installed within the cluster
+# (see: https://gateway-api.sigs.k8s.io/guides/)
+httpRoute:
+  # HTTPRoute enabled.
+  enabled: false
+  # HTTPRoute annotations.
+  annotations: {}
+  # Which Gateways this Route is attached to.
+  parentRefs:
+  - name: gateway
+    sectionName: http
+    # namespace: default
+  # Hostnames matching HTTP header.
+  hostnames:
+  - chart-example.local
+  # List of rules and filters applied.
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /headers
+  #   filters:
+  #   - type: RequestHeaderModifier
+  #     requestHeaderModifier:
+  #       set:
+  #       - name: My-Overwrite-Header
+  #         value: this-is-the-only-value
+  #       remove:
+  #       - User-Agent
+  # - matches:
+  #   - path:
+  #       type: PathPrefix
+  #       value: /echo
+  #     headers:
+  #     - name: version
+  #       value: v2
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+startupProbe:
+  httpGet:
+    path: /
+    port: http
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+
+
+volumes:
+  - name: config
+  - name: data
+volumeMounts:
+  - name: config
+    mountPath: "/etc/radicale"
+  - name: data
+    mountPath: "/var/lib/radicale"
+
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Environment variables
+# WARNING: never commit cleartext secrets to git! If you use `envSecret:` or `secrets:` below, it should be in a SOPS-encrypted file.
+# NOTE: These have to be strings. Even numbers have to be strings!
+#
+# Recommended:
+#   - Use envConfigMap: to automatically create a ConfigMap and add envFrom to the Deployment for cleartext env vars.
+#   - Use envSecret: to automatically create a Secret and add envFrom to the Deployment for secrets.
+#   - Use envConfigMapName to specify an external ConfigMap.
+#   - Use envSecretName to specify an external Secret.
+# Alternative:
+#   - Use env: directly to override the env: section of the Deployment.
+# Deprecated:
+#   - Use secrets: to automatically create a Secret and add each env var with valueFrom to the env: section of the Deployment.
+#
+# envConfigMap:
+#   COOL_MEME: "Six Seven"
+#   HOG_RIDERS: "2"
+# envSecret:
+#   LUGGAGE_COMBINATION: "12345"
+# envConfigMapName: custom-env
+# envSecretName: custom-env
+# env:
+#   - name: SCARIEST_NUMBER
+#     value: "7"
+#   - name: AWS_ACCESS_KEY_ID
+#     value: "AKIAIOSFODNN7EXAMPLE"
+#   - name: DB_USERNAME
+#     valueFrom:
+#       configMapKeyRef:
+#         name: my-configmap
+#         key: db-username
+#   - name: DB_PASSWORD
+#     valueFrom:
+#       secretKeyRef:
+#         name: postgres
+#         key: db-password
+# secrets:
+#   ADMIN_TOKEN: kjhfkjgahsdug
+#   PASSWORD: kfj09u039jh
+#   AWS_SECRET_ACCESS_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+
+# Command and args for your container
+# command:
+#  - /bin/sh
+# args:
+#  - -c
+#  - node /app/main.js --option1 thing
+
+# Example initContainer
+# initContainers:
+#   - name: copy-bucket
+#     image: "amazon/aws-cli:2.17.29"
+#     command: ['sh', '-c', "aws s3 cp --recursive s3://mah-bucket-us-east-2/lolrus ."]
+
+# Production workloads should have PDBs. Setting maxUnavailable to 1 is the safest setting for most applications. This ensures that only one pod can be taken out of service at a time.
+podDisruptionBudget:
+  enabled: true
+  # minAvailable: 1
+  maxUnavailable: 1
