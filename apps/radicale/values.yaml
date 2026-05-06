@@ -17,6 +17,17 @@ image:
   repository: ghcr.io/kozea/radicale@sha256
   tag: "9c162b6258683aa347532f2300060910e100f728ee5e636a43e1dcf016556c0b" # 3.7.2
 
+# Fix volume permissions: fsGroup changes mounted volume ownership so the radicale user
+# (uid/gid 1000) can write to /var/lib/radicale. Without this, the PVC is root-owned (755)
+# and the container fails with "Permission denied: '/var/lib/radicale/collections'".
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+
 service:
   port: 5232
 
