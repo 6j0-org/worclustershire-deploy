@@ -14,7 +14,7 @@ spec:
 
     # Let's Encrypt's prod server
     # https://letsencrypt.org/getting-started/#selecting-and-operating-an-acme-client-yourself
-    server: https://acme-v02.api.letsencrypt.org/directory
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
 
     # This is supposed to have a default of "tls.key", but apparently that doesn't work, because I get this error when I don't specify it:
     #
@@ -41,9 +41,6 @@ spec:
             - kind: Gateway
               name: eg
               namespace: envoy-gateway-system
-
-              # Add this to fix:
-              #   Warning  PresentError  103s                  cert-manager-challenges  Error presenting challenge: HTTPRoute.gateway.networking.k8s.io "cm-acme-http-solver-kzs9j" is invalid: spec.parentRefs: Invalid value: "array": sectionName must be unique when parentRefs includes 2 or more references to the same parent
               sectionName: http
 
       # Cloudflare
