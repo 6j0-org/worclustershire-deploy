@@ -75,11 +75,3 @@ resources:
 extraArgs:
   - --webhook-provider-read-timeout=30s
   - --webhook-provider-write-timeout=30s
-
-initContainers:
-  - name: wait-for-webhook
-    image: busybox:1.36
-    securityContext:
-      runAsNonRoot: true
-      runAsUser: 65534
-    command: ['sh', '-c', 'until nc -z localhost 8888; do echo waiting for webhook; sleep 2; done']
