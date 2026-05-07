@@ -31,60 +31,24 @@ securityContext:
 service:
   port: 5232
 
-# This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
 ingress:
-  enabled: true
-  className: ""
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt
-    kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: radicale.6j0.org
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-  tls:
-    - secretName: radicale-tls
-      hosts:
-        - radicale.6j0.org
+  enabled: false
 
 # -- Expose the service via gateway-api HTTPRoute
-# Requires Gateway API resources and suitable controller installed within the cluster
-# (see: https://gateway-api.sigs.k8s.io/guides/)
 httpRoute:
-  # HTTPRoute enabled.
-  enabled: false
-  # HTTPRoute annotations.
+  enabled: true
   annotations: {}
-  # Which Gateways this Route is attached to.
   parentRefs:
-  - name: gateway
-    sectionName: http
-    # namespace: default
-  # Hostnames matching HTTP header.
+  - name: eg
+    sectionName: https
+    namespace: envoy-gateway-system
   hostnames:
-  - chart-example.local
-  # List of rules and filters applied.
+  - radicale.6j0.org
   rules:
   - matches:
     - path:
         type: PathPrefix
-        value: /headers
-  #   filters:
-  #   - type: RequestHeaderModifier
-  #     requestHeaderModifier:
-  #       set:
-  #       - name: My-Overwrite-Header
-  #         value: this-is-the-only-value
-  #       remove:
-  #       - User-Agent
-  # - matches:
-  #   - path:
-  #       type: PathPrefix
-  #       value: /echo
-  #     headers:
-  #     - name: version
-  #       value: v2
+        value: /
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
