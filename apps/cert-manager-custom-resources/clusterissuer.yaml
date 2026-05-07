@@ -34,12 +34,13 @@ spec:
       #       ingressClassName: nginx
 
       # Envoy Gateway HTTP01 solver
-      # - http01:
-      #     gatewayHTTPRoute:
-      #       parentRefs:
-      #       - kind: Gateway
-      #         name: eg
-      #         namespace: envoy-gateway-system
+      # https://gateway.envoyproxy.io/latest/tasks/security/tls-cert-manager/
+      - http01:
+          gatewayHTTPRoute:
+            parentRefs:
+            - kind: Gateway
+              name: eg
+              namespace: envoy-gateway-system
 
       # Cloudflare
       # - dns01:
