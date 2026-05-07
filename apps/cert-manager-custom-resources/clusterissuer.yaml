@@ -14,7 +14,7 @@ spec:
 
     # Let's Encrypt's prod server
     # https://letsencrypt.org/getting-started/#selecting-and-operating-an-acme-client-yourself
-    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    server: https://acme-v02.api.letsencrypt.org/directory
 
     # This is supposed to have a default of "tls.key", but apparently that doesn't work, because I get this error when I don't specify it:
     #
