@@ -33,14 +33,13 @@ spec:
           ingress:
             ingressClassName: nginx
 
-      # Use this for envoy gateway
-      # https://gateway.envoyproxy.io/docs/tasks/security/tls-cert-manager/#using-the-acme-issuer-with-lets-encrypt-and-http-01
-      # - http01:
-      #     gatewayHTTPRoute:
-      #       parentRefs:
-      #       - kind: Gateway
-      #         name: eg
-      #         namespace: envoy-gateway-system
+      # Envoy Gateway HTTP01 solver
+      - http01:
+          gatewayHTTPRoute:
+            parentRefs:
+            - kind: Gateway
+              name: eg
+              namespace: envoy-gateway-system
 
       # - dns01:
       #     cloudflare:
