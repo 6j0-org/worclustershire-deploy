@@ -70,7 +70,7 @@ spec:
         mode: Terminate
         certificateRefs:
           - kind: Secret
-            name: eg-youcandoithealth-com
+            name: youcandoithealth-com-tls
       allowedRoutes:
         namespaces:
           from: All
