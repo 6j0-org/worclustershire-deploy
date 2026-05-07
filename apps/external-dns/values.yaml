@@ -32,36 +32,35 @@ sources:
 #           name: cloudflare-api-key
 #           key: apiKey
 
-
 # Porkbun webhook provider
 # https://github.com/konnektr-io/external-dns-porkbun-webhook
-provider:
-  name: webhook
-  webhook:
-    image:
-      repository: ghcr.io/konnektr-io/external-dns-porkbun-webhook
-      tag: v0.2.19
-    securityContext:
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop:
-          - ALL
-      runAsNonRoot: false
-    args:
-      - --domain-filter=6j0.org
-      - --domain-filter=youcandoithealth.com
-      - --listen-address=0.0.0.0:8888
-    env:
-      - name: API_KEY
-        valueFrom:
-          secretKeyRef:
-            name: porkbun-secret
-            key: PORKBUN_API_KEY
-      - name: API_SECRET
-        valueFrom:
-          secretKeyRef:
-            name: porkbun-secret
-            key: PORKBUN_SECRET_API_KEY
+# provider:
+#   name: webhook
+#   webhook:
+#     image:
+#       repository: ghcr.io/konnektr-io/external-dns-porkbun-webhook
+#       tag: v0.2.19
+#     securityContext:
+#       allowPrivilegeEscalation: false
+#       capabilities:
+#         drop:
+#           - ALL
+#       runAsNonRoot: false
+#     args:
+#       - --domain-filter=6j0.org
+#       - --domain-filter=youcandoithealth.com
+#       - --listen-address=0.0.0.0:8888
+#     env:
+#       - name: API_KEY
+#         valueFrom:
+#           secretKeyRef:
+#             name: porkbun-secret
+#             key: PORKBUN_API_KEY
+#       - name: API_SECRET
+#         valueFrom:
+#           secretKeyRef:
+#             name: porkbun-secret
+#             key: PORKBUN_SECRET_API_KEY
 
 resources:
   requests:

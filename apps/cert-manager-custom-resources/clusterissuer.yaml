@@ -53,14 +53,14 @@ spec:
       # Porkbun DNS-01 (via cert-manager-webhook-porkbun).
       # Required for wildcard certificates and to avoid exposing port 80 for HTTP-01.
       # https://github.com/pabloa/cert-manager-webhook-porkbun
-      - dns01:
-          webhook:
-            groupName: cert-manager-webhook-porkbun.pabloa.dev
-            solverName: porkbun
-            config:
-              apiKey:
-                name: porkbun-secret
-                key: PORKBUN_API_KEY
-              secretApiKey:
-                name: porkbun-secret
-                key: PORKBUN_SECRET_API_KEY
+      # - dns01:
+      #     webhook:
+      #       groupName: cert-manager-webhook-porkbun.pabloa.dev
+      #       solverName: porkbun
+      #       config:
+      #         apiKey:
+      #           name: porkbun-secret
+      #           key: PORKBUN_API_KEY
+      #         secretApiKey:
+      #           name: porkbun-secret
+      #           key: PORKBUN_SECRET_API_KEY
