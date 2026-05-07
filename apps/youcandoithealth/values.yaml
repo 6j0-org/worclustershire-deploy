@@ -4,15 +4,10 @@ image:
   tag: dev-3ba8e63-1777492822 # {"$imagepolicy": "flux-system:youcandoithealth:tag"}
 service:
   port: 5000
-
-ingress:
-  enabled: false
-
 httpRoute:
   enabled: true
   parentRefs:
     - name: eg
-      sectionName: youcandoithealth-com
       namespace: envoy-gateway-system
   hostnames:
     - youcandoithealth.com

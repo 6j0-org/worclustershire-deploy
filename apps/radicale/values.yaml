@@ -31,13 +31,8 @@ securityContext:
 service:
   port: 5232
 
-ingress:
-  enabled: false
-
-# -- Expose the service via gateway-api HTTPRoute
 httpRoute:
   enabled: true
-  annotations: {}
   parentRefs:
   - name: eg
     namespace: envoy-gateway-system
@@ -75,16 +70,18 @@ readinessProbe:
     path: /
     port: http
 
-
 volumes:
-  - name: config
-  - name: data
+  - name: auth
+    secret:
+      secretName: radicale-auth
 volumeMounts:
-  - name: config
-    mountPath: "/etc/radicale"
-  - name: data
-    mountPath: "/var/lib/radicale"
+  - name: auth
+    mountPath: "/etc/radicale/users"
 
+    # This ensures that only the `users` key from the Secret is placed at the mount path without overwriting `/etc/radicale/`.
+    subPath: users
+
+    readOnly: true
 
 nodeSelector: {}
 
