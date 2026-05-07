@@ -33,13 +33,7 @@ spec:
       #     ingress:
       #       ingressClassName: nginx
 
-      # Envoy Gateway HTTP01 solver
-      # https://gateway.envoyproxy.io/latest/tasks/security/tls-cert-manager/
-      # https://cert-manager.io/docs/usage/gateway/
-      # parentRefs omitted intentionally: cert-manager v1.20+ auto-detects the
-      # Gateway from the cert-manager.io/cluster-issuer annotation on the Gateway.
-      # Explicit parentRefs here + the annotation causes duplicate parentRefs in
-      # the Challenge object (cert-manager#8634). Fixed in v1.20.1+.
+      # Gateway HTTP01 solver
       # https://cert-manager.io/docs/usage/gateway/#example-self-service-tls-with-listenerset-and-http-01
       - http01:
           gatewayHTTPRoute: {}
