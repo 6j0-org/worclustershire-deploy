@@ -41,6 +41,8 @@ provider:
     image:
       repository: ghcr.io/konnektr-io/external-dns-porkbun-webhook
       tag: v0.2.19
+    securityContext:
+      runAsNonRoot: false
     env:
       - name: API_KEY
         valueFrom:

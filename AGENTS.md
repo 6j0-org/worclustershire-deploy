@@ -44,3 +44,12 @@ Registration: adding an app creates `flux/flux-system/<name>.yaml` (a Kustomizat
 - **Volume permissions**: pods running as non-root need `podSecurityContext.fsGroup` set to the container's gid so PVCs are writable. Example: radicale uses `fsGroup: 1000`.
 - **OCI vs Helm repo**: `deploy_new_app.sh` auto-configures based on whether `repo_url` starts with `oci:`. If switching later, swap `helmrepo.yaml` ↔ `ocirepo.yaml` references in `kustomization.yaml` and update `release.yaml` `.spec.chartRef` or `.spec.chart`.
 - **Image automation**: `deploy_new_app.sh` adds an ImageRepository + ImagePolicy for `ghcr.io/dfinity-ops/<app_name>` to `flux/flux-system/imagerepositories.yaml` and `imagepolicies.yaml`. Update the image org/path if different.
+
+## Ingress / Gateway API
+
+- Two ingress controllers run in parallel: **ingress-nginx** (legacy) and **Envoy Gateway** (`apps/eg/`, `apps/eg-custom-resources/`). New apps should use the Gateway. Existing nginx Ingresses remain functional.
+- The single Envoy `Gateway` in `envoy-gateway-system` has wildcard listeners (`*.6j0.org`, `*.s3.garage.6j0.org`, `*.web.garage.6j0.org`) plus per-domain listeners for non-`6j0.org` hosts. HTTPRoutes for `*.6j0.org` subdomains attach to the Gateway without `sectionName`; non-matching hosts must specify `sectionName`.
+- TLS certs are issued via cert-manager + **Porkbun DNS-01** (webhook in `apps/cert-manager-webhook-porkbun/`). The Porkbun API secret lives in two namespaces: `cert-manager` (for the webhook) and `external-dns`. Both reference key names `PORKBUN_API_KEY` and `PORKBUN_SECRET_API_KEY`.
+- DNS records are managed by **external-dns** with `--source=gateway-httproute` and `--domain-filter=6j0.org`. Adding a new HTTPRoute auto-creates the DNS record at Porkbun.
+- Charts without HTTPRoute support (longhorn, grafana, garage, immich) get a standalone `*-httproute.yaml` manifest in their app directory, added to `kustomization.yaml`'s `resources`.
+- **Basic auth** previously provided by ingress-nginx annotations is NOT migrated. See `apps/eg-custom-resources/TODO-basic-auth.md` for the EG `SecurityPolicy` migration plan.
