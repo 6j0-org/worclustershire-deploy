@@ -12,6 +12,7 @@ resources:
   - auth.secrets.yaml
   - ocirepo.yaml
   - release.yaml
+  - grafana-httproute.yaml
 configMapGenerator:
   - name: kube-prometheus-stack-values
     files:

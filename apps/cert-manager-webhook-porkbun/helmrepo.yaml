@@ -1,0 +1,7 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: cert-manager-webhook-porkbun
+spec:
+  interval: 60m
+  url: https://pabloa.github.io/cert-manager-webhook-porkbun

@@ -594,7 +594,7 @@ alertmanager:
   #       {{ end }}
 
   ingress:
-    enabled: true
+    enabled: false
 
     ingressClassName: ""
 
@@ -642,37 +642,19 @@ alertmanager:
   # [[ref]](https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io%2fv1alpha2)
   route:
     main:
-      # -- Enables or disables the route
-      enabled: false
-
-      # -- Set the route apiVersion, e.g. gateway.networking.k8s.io/v1 or gateway.networking.k8s.io/v1alpha2
+      enabled: true
       apiVersion: gateway.networking.k8s.io/v1
-      # -- Set the route kind
-      # Valid options are GRPCRoute, HTTPRoute, TCPRoute, TLSRoute, UDPRoute
       kind: HTTPRoute
-
-      annotations: {}
-      labels: {}
-
-      hostnames: []
-      # - my-filter.example.com
-      parentRefs: []
-      # - name: acme-gw
-
-      # -- create http route for redirect (https://gateway-api.sigs.k8s.io/guides/http-redirect-rewrite/#http-to-https-redirects)
-      ## Take care that you only enable this on the http listener of the gateway to avoid an infinite redirect.
-      ## matches, filters and additionalRules will be ignored if this is set to true. Be are
-      httpsRedirect: false
-
+      hostnames:
+        - alertmanager.6j0.org
+      parentRefs:
+        - name: eg
+          namespace: envoy-gateway-system
       matches:
         - path:
             type: PathPrefix
             value: /
-
-      ## Filters define the filters that are applied to requests that match this rule.
       filters: []
-
-      ## Additional custom rules that can be added to the route
       additionalRules: []
 
   ## Configuration for Alertmanager secret
@@ -1336,7 +1318,7 @@ grafana:
   ingress:
     ## If true, Grafana Ingress will be created
     ##
-    enabled: true
+    enabled: false
 
     ## IngressClassName for Grafana Ingress.
     ## Should be provided if Ingress is enable.
@@ -3734,7 +3716,7 @@ prometheus:
   #     someoneelse:$apr1$DMZX2Z4q$6SbQIfyuLQd.xmo/P0m2c.
 
   ingress:
-    enabled: true
+    enabled: false
 
     ingressClassName: ""
 
@@ -3779,37 +3761,19 @@ prometheus:
   # [[ref]](https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io%2fv1alpha2)
   route:
     main:
-      # -- Enables or disables the route
-      enabled: false
-
-      # -- Set the route apiVersion, e.g. gateway.networking.k8s.io/v1 or gateway.networking.k8s.io/v1alpha2
+      enabled: true
       apiVersion: gateway.networking.k8s.io/v1
-      # -- Set the route kind
-      # Valid options are GRPCRoute, HTTPRoute, TCPRoute, TLSRoute, UDPRoute
       kind: HTTPRoute
-
-      annotations: {}
-      labels: {}
-
-      hostnames: []
-      # - my-filter.example.com
-      parentRefs: []
-      # - name: acme-gw
-
-      # -- create http route for redirect (https://gateway-api.sigs.k8s.io/guides/http-redirect-rewrite/#http-to-https-redirects)
-      ## Take care that you only enable this on the http listener of the gateway to avoid an infinite redirect.
-      ## matches, filters and additionalRules will be ignored if this is set to true. Be are
-      httpsRedirect: false
-
+      hostnames:
+        - prometheus.6j0.org
+      parentRefs:
+        - name: eg
+          namespace: envoy-gateway-system
       matches:
         - path:
             type: PathPrefix
             value: /
-
-      ## Filters define the filters that are applied to requests that match this rule.
       filters: []
-
-      ## Additional custom rules that can be added to the route
       additionalRules: []
 
   ## Configuration for creating an Ingress that will map to each Prometheus replica service

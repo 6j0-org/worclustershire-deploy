@@ -1,17 +1,16 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: cert-manager-custom-resources
+  name: cert-manager-webhook-porkbun
   namespace: flux-system
 spec:
   dependsOn:
     - name: cert-manager
-    - name: cert-manager-webhook-porkbun
   interval: 10m0s
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: apps/cert-manager-custom-resources
+  path: apps/cert-manager-webhook-porkbun
   prune: true
   wait: true
   timeout: 5m0s

@@ -1,4 +1,8 @@
 # https://gateway.envoyproxy.io/docs/tasks/security/tls-cert-manager/
+#
+# All certs are provisioned by cert-manager via Porkbun DNS-01 (see
+# apps/cert-manager-custom-resources/clusterissuer.yaml). With DNS-01 we can
+# request wildcard certs at any subdomain depth.
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
@@ -14,111 +18,64 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
-    - name: radicale-6j0-org
-      hostname: radicale.6j0.org
+
+    # Wildcard listener covering *.6j0.org. HTTPRoutes attach without specifying
+    # sectionName; their hostnames determine which routes match.
+    - name: wildcard-6j0-org
+      hostname: "*.6j0.org"
       protocol: HTTPS
       port: 443
       tls:
         mode: Terminate
         certificateRefs:
-        - kind: Secret
-          name: eg-radicale-6j0-org
+          - kind: Secret
+            name: eg-wildcard-6j0-org
       allowedRoutes:
         namespaces:
           from: All
-    # - name: hatsmith-6j0-org
-    #   hostname: hatsmith.6j0.org
-    #   protocol: HTTPS
-    #   port: 443
-    #   tls:
-    #     mode: Terminate
-    #     certificateRefs:
-    #     - kind: Secret
-    #       name: eg-hatsmith-6j0-org
-    #   allowedRoutes:
-    #     namespaces:
-    #       from: All
-    # - name: immich-6j0-org
-    #   hostname: immich.6j0.org
-    #   protocol: HTTPS
-    #   port: 443
-    #   tls:
-    #     mode: Terminate
-    #     certificateRefs:
-    #     - kind: Secret
-    #       name: eg-immich-6j0-org
-    #   allowedRoutes:
-    #     namespaces:
-    #       from: All
-    # - name: alertmanager-6j0-org
-    #   hostname: alertmanager.6j0.org
-    #   protocol: HTTPS
-    #   port: 443
-    #   tls:
-    #     mode: Terminate
-    #     certificateRefs:
-    #     - kind: Secret
-    #       name: eg-alertmanager-6j0-org
-    #   allowedRoutes:
-    #     namespaces:
-    #       from: All
-    # - name: grafana-6j0-org
-    #   hostname: grafana.6j0.org
-    #   protocol: HTTPS
-    #   port: 443
-    #   tls:
-    #     mode: Terminate
-    #     certificateRefs:
-    #     - kind: Secret
-    #       name: eg-grafana-6j0-org
-    #   allowedRoutes:
-    #     namespaces:
-    #       from: All
-    # - name: prometheus-6j0-org
-    #   hostname: prometheus.6j0.org
-    #   protocol: HTTPS
-    #   port: 443
-    #   tls:
-    #     mode: Terminate
-    #     certificateRefs:
-    #     - kind: Secret
-    #       name: eg-prometheus-6j0-org
-    #   allowedRoutes:
-    #     namespaces:
-    #       from: All
-    # - name: longhorn-6j0-org
-    #   hostname: longhorn.6j0.org
-    #   protocol: HTTPS
-    #   port: 443
-    #   tls:
-    #     mode: Terminate
-    #     certificateRefs:
-    #     - kind: Secret
-    #       name: eg-longhorn-6j0-org
-    #   allowedRoutes:
-    #     namespaces:
-    #       from: All
-    # - name: youcandoithealth-com
-    #   hostname: youcandoithealth.com
-    #   protocol: HTTPS
-    #   port: 443
-    #   tls:
-    #     mode: Terminate
-    #     certificateRefs:
-    #     - kind: Secret
-    #       name: eg-youdcandoithealth-com
-    #   allowedRoutes:
-    #     namespaces:
-    #       from: All
-    # - name: s3-garage-6j0-org
-    #   hostname: s3.garage.6j0.org
-    #   protocol: HTTPS
-    #   port: 443
-    #   tls:
-    #     mode: Terminate
-    #     certificateRefs:
-    #     - kind: Secret
-    #       name: eg-s3-garage-6j0-org
-    #   allowedRoutes:
-    #     namespaces:
-    #       from: All
+
+    # *.6j0.org does NOT match deeper subdomains. Separate wildcards for garage:
+    - name: wildcard-s3-garage-6j0-org
+      hostname: "*.s3.garage.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: eg-wildcard-s3-garage-6j0-org
+      allowedRoutes:
+        namespaces:
+          from: All
+
+    - name: wildcard-web-garage-6j0-org
+      hostname: "*.web.garage.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: eg-wildcard-web-garage-6j0-org
+      allowedRoutes:
+        namespaces:
+          from: All
+
+    # Apex 6j0.org is NOT covered by *.6j0.org. Add a listener if/when needed.
+    # - name: apex-6j0-org
+    #   hostname: 6j0.org
+    #   ...
+
+    # Non-6j0.org domain — needs its own cert.
+    - name: youcandoithealth-com
+      hostname: youcandoithealth.com
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: eg-youcandoithealth-com
+      allowedRoutes:
+        namespaces:
+          from: All

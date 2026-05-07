@@ -90,7 +90,7 @@ server:
             pullPolicy: IfNotPresent
   ingress:
     main:
-      enabled: true
+      enabled: false
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt
         kubernetes.io/tls-acme: "true"

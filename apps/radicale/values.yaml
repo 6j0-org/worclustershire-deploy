@@ -40,7 +40,6 @@ httpRoute:
   annotations: {}
   parentRefs:
   - name: eg
-    sectionName: radicale-6j0-org
     namespace: envoy-gateway-system
   hostnames:
   - radicale.6j0.org

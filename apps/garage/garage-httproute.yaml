@@ -1,0 +1,42 @@
+# https://gateway.envoyproxy.io/blog/2023/12/01/wildcard-hostnames/
+# Garage S3 API — both apex (s3.garage.6j0.org) and bucket-style subdomains
+# (*.s3.garage.6j0.org). Each goes to a different Gateway listener.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: garage-s3-api
+spec:
+  parentRefs:
+    - name: eg
+      namespace: envoy-gateway-system
+  hostnames:
+    - s3.garage.6j0.org
+    - "*.s3.garage.6j0.org"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: garage
+          port: 3900
+---
+# Garage S3 Web (static website hosting) — bucket subdomains under web.garage.6j0.org.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: garage-s3-web
+spec:
+  parentRefs:
+    - name: eg
+      namespace: envoy-gateway-system
+  hostnames:
+    - "*.web.garage.6j0.org"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: garage
+          port: 3902

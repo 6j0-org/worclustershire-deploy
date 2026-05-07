@@ -13,13 +13,7 @@ defaultBackupStore:
   backupTarget: "s3://evanstest@us-west-1/"
   backupTargetCredentialSecret: evanstest
 
+# Ingress disabled - using Envoy Gateway HTTPRoute (see longhorn-httproute.yaml).
+# TODO: basic auth was provided by ingress-nginx annotations. Migrate to EG SecurityPolicy.
 ingress:
-  enabled: true
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt
-    kubernetes.io/tls-acme: "true"
-    nginx.ingress.kubernetes.io/auth-type: basic
-    nginx.ingress.kubernetes.io/auth-secret: basic-auth
-  ingressClassName: nginx
-  host: longhorn.6j0.org
-  tls: true
+  enabled: false

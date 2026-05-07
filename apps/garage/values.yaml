@@ -18,38 +18,11 @@ persistence:
 ingress:
   s3:
     api:
-      enabled: true
-      annotations:
-        cert-manager.io/cluster-issuer: letsencrypt
-        kubernetes.io/tls-acme: "true"
-      hosts:
-        - host: "s3.garage.6j0.org"
-          paths:
-            - path: /
-              pathType: Prefix
-        - host: "*.s3.garage.6j0.org"
-          paths:
-            - path: /
-              pathType: Prefix
-      tls:
-        - secretName: s3-garage-cluster-tls
-          hosts:
-            - s3.garage.6j0.org
-            - "*.s3.garage.6j0.org"
+      # Disabled: routing handled by Envoy Gateway HTTPRoute (see garage-httproute.yaml).
+      enabled: false
     web:
-      enabled: true
-      annotations:
-        cert-manager.io/cluster-issuer: letsencrypt
-        kubernetes.io/tls-acme: "true"
-      hosts:
-       - host: "*.web.garage.6j0.org"
-         paths:
-           - path: /
-             pathType: Prefix
-      tls:
-        - secretName: web-garage-cluster-tls
-          hosts:
-            - "*.web.garage.6j0.org"
+      # Disabled: routing handled by Envoy Gateway HTTPRoute (see garage-httproute.yaml).
+      enabled: false
 
 resources: {}
   # The following are indicative for a small-size deployment, for anything serious double them.

@@ -29,21 +29,38 @@ spec:
     solvers:
 
       # Use this for ingress-nginx
-      - http01:
-          ingress:
-            ingressClassName: nginx
+      # - http01:
+      #     ingress:
+      #       ingressClassName: nginx
 
       # Envoy Gateway HTTP01 solver
-      - http01:
-          gatewayHTTPRoute:
-            parentRefs:
-            - kind: Gateway
-              name: eg
-              namespace: envoy-gateway-system
+      # - http01:
+      #     gatewayHTTPRoute:
+      #       parentRefs:
+      #       - kind: Gateway
+      #         name: eg
+      #         namespace: envoy-gateway-system
 
+      # Cloudflare
       # - dns01:
       #     cloudflare:
       #       email: hostmaster@devops.coop
       #       apiTokenSecretRef:
       #         name: cloudflare-apikey-secret
       #         key: apikey
+
+
+      # Porkbun DNS-01 (via cert-manager-webhook-porkbun).
+      # Required for wildcard certificates and to avoid exposing port 80 for HTTP-01.
+      # https://github.com/pabloa/cert-manager-webhook-porkbun
+      - dns01:
+          webhook:
+            groupName: cert-manager-webhook-porkbun.pabloa.dev
+            solverName: porkbun
+            config:
+              apiKey:
+                name: porkbun-secret
+                key: PORKBUN_API_KEY
+              secretApiKey:
+                name: porkbun-secret
+                key: PORKBUN_SECRET_API_KEY

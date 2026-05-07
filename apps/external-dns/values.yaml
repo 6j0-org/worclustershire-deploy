@@ -4,7 +4,7 @@
 # In larger environments with lots of records, the default of 1m can trigger rate limiting on Route 53. Uncomment this if needed.
 interval: 10m
 
-# If we have a larger interval, we don't want to wait for external-dns to make changes. Uncomment this if needed.
+# If we have a larger interval, we don't want to wait for external-dns to make changes.
 triggerLoopOnEvent: true
 
 # We want to delete records for ingresses that have been deleted.
@@ -13,19 +13,45 @@ policy: sync
 # If we have multiple k8s clusters writing to the same DNS zone, each external-dns needs a way to identify the records it owns. And since we can only have one external-dns provider per cluster, the setting this to the cluster name seems reasonable.
 txtOwnerId: worclustershire
 
+# Watch Gateway API resources (HTTPRoute) in addition to Ingresses/Services.
+sources:
+  - service
+  - ingress
+  - gateway-httproute
+
 # Cloudflare config based on:
 # https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/cloudflare.md
+# provider:
+#   name: cloudflare
+#   webhook:
+#     - --cloudflare-dns-records-per-page=5000
+#   env:
+#     - name: CF_API_TOKEN
+#       valueFrom:
+#         secretKeyRef:
+#           name: cloudflare-api-key
+#           key: apiKey
+
+
+# Porkbun webhook provider
+# https://github.com/konnektr-io/external-dns-porkbun-webhook
 provider:
-  name: cloudflare
+  name: webhook
   webhook:
-    args:
-      - --cloudflare-dns-records-per-page=5000
-env:
-  - name: CF_API_TOKEN
-    valueFrom:
-      secretKeyRef:
-        name: cloudflare-api-key
-        key: apiKey
+    image:
+      repository: ghcr.io/konnektr-io/external-dns-porkbun-webhook
+      tag: v0.2.19
+    env:
+      - name: API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: porkbun-secret
+            key: PORKBUN_API_KEY
+      - name: API_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: porkbun-secret
+            key: PORKBUN_SECRET_API_KEY
 
 resources:
   requests:

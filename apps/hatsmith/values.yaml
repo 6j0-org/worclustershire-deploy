@@ -2,55 +2,19 @@ replicaCount: 1
 image:
   repository: ghcr.io/mrtechtroid/hatsmith@sha256
   tag: d68cfea64828558c2907646a954d0b873f82b0c0c9541e7aa05e2e3a6a3d83f4
-ingress:
-  enabled: true
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt
-    kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: hatsmith.6j0.org
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-  tls:
-    - secretName: hatsmith-tls
-      hosts:
-        - hatsmith.6j0.org
 
-# -- Expose the service via gateway-api HTTPRoute
-# Requires Gateway API resources and suitable controller installed within the cluster
-# (see: https://gateway-api.sigs.k8s.io/guides/)
-httpRoute:
-  # HTTPRoute enabled.
+ingress:
   enabled: false
-  # HTTPRoute annotations.
-  annotations: {}
-  # Which Gateways this Route is attached to.
+
+httpRoute:
+  enabled: true
   parentRefs:
-  - name: gateway
-    sectionName: http
-    # namespace: default
-  # Hostnames matching HTTP header.
+  - name: eg
+    namespace: envoy-gateway-system
   hostnames:
-  - chart-example.local
-  # List of rules and filters applied.
+  - hatsmith.6j0.org
   rules:
   - matches:
     - path:
         type: PathPrefix
-        value: /headers
-  #   filters:
-  #   - type: RequestHeaderModifier
-  #     requestHeaderModifier:
-  #       set:
-  #       - name: My-Overwrite-Header
-  #         value: this-is-the-only-value
-  #       remove:
-  #       - User-Agent
-  # - matches:
-  #   - path:
-  #       type: PathPrefix
-  #       value: /echo
-  #     headers:
-  #     - name: version
-  #       value: v2
+        value: /

@@ -13,6 +13,7 @@ resources:
   - cloudnative-pg.yaml
   - ocirepo.yaml
   - release.yaml
+  - immich-httproute.yaml
 configMapGenerator:
   - name: immich-values
     files:
