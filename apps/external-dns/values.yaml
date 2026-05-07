@@ -42,7 +42,14 @@ provider:
       repository: ghcr.io/konnektr-io/external-dns-porkbun-webhook
       tag: v0.2.19
     securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
       runAsNonRoot: false
+    args:
+      - --domain-filter=6j0.org
+      - --domain-filter=youcandoithealth.com
     env:
       - name: API_KEY
         valueFrom:
