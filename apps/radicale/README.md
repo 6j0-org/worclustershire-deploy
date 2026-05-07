@@ -1,6 +1,6 @@
 # Authentication
 
-Radicale uses htpasswd-based authentication. The `users` file is stored as a SOPS-encrypted Secret and mounted into the pod at `/etc/radicale/users`.
+Radicale uses htpasswd-based authentication. The `users` file is stored as a SOPS-encrypted Secret and mounted into the pod at `/etc/radicale/users`. A ConfigMap provides the `[auth]` config section at `/etc/radicale/config`.
 
 ## Creating the users file
 
@@ -21,25 +21,13 @@ htpasswd -B users <another-user>
 Generate a Secret manifest from the `users` file and encrypt it:
 
 ```bash
-kubectl create secret generic basic-auth \
+kubectl create secret generic users \
+  --namespace radicale \
   --from-file=users \
   --dry-run=client \
-  -o yaml > auth.secrets.yaml
+  -o yaml > users.secrets.yaml
 
-sops --encrypt --in-place auth.secrets.yaml
+sops --encrypt --in-place users.secrets.yaml
 
 rm users
 ```
-
-## Updating the Radicale config
-
-The config file at `/etc/radicale/config` must include the auth section:
-
-```ini
-[auth]
-type = htpasswd
-htpasswd_filename = /etc/radicale/users
-htpasswd_encryption = autodetect
-```
-
-This is set via the chart's config mechanism (the `config` key in values.yaml, which populates the ConfigMap mounted as the `config` volume).

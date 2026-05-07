@@ -10,12 +10,15 @@ namespace: radicale
 resources:
   - namespace.yaml
   - ocirepo.yaml
-  - auth.secrets.yaml
+  - users.secrets.yaml
   - release.yaml
 configMapGenerator:
   - name: radicale-values
     files:
       - values.yaml=values.yaml
+  - name: radicale-config
+    files:
+      - config
 secretGenerator:
   - name: radicale-secrets
     files:

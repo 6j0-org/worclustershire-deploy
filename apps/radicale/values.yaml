@@ -71,16 +71,23 @@ readinessProbe:
     port: http
 
 volumes:
-  - name: auth
+  - name: config
+    configMap:
+      name: config
+  - name: data
+  - name: users
     secret:
-      secretName: radicale-auth
+      secretName: users
 volumeMounts:
-  - name: auth
+  - name: config
+    mountPath: "/etc/radicale/config"
+    subPath: config
+    readOnly: true
+  - name: data
+    mountPath: "/var/lib/radicale"
+  - name: users
     mountPath: "/etc/radicale/users"
-
-    # This ensures that only the `users` key from the Secret is placed at the mount path without overwriting `/etc/radicale/`.
     subPath: users
-
     readOnly: true
 
 nodeSelector: {}
