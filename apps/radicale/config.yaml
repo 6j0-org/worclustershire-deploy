@@ -1,0 +1,10 @@
+apiVersion: v1
+data:
+  config: |
+    [auth]
+    type = htpasswd
+    htpasswd_filename = /etc/radicale/users
+    htpasswd_encryption = autodetect
+kind: ConfigMap
+metadata:
+  name: config

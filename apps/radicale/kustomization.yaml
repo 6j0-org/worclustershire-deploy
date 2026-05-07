@@ -11,14 +11,12 @@ resources:
   - namespace.yaml
   - ocirepo.yaml
   - users.secrets.yaml
+  - config.yaml
   - release.yaml
 configMapGenerator:
   - name: radicale-values
     files:
       - values.yaml=values.yaml
-  - name: radicale-config
-    files:
-      - config=config
 secretGenerator:
   - name: radicale-secrets
     files:
