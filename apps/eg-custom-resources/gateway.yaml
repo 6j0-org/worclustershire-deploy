@@ -1,4 +1,3 @@
-# https://github.com/envoyproxy/gateway/releases/download/v1.6.3/quickstart.yaml
 # https://gateway.envoyproxy.io/docs/tasks/security/tls-cert-manager/
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
@@ -15,14 +14,111 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
-    - name: https
+    - name: radicale-6j0-org
+      hostname: radicale.6j0.org
       protocol: HTTPS
       port: 443
       tls:
         mode: Terminate
         certificateRefs:
         - kind: Secret
-          name: eg-https
+          name: eg-radicale-6j0-org
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: hatsmith-6j0-org
+      hostname: hatsmith.6j0.org
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+        - kind: Secret
+          name: eg-hatsmith-6j0-org
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: immich-6j0-org
+      hostname: immich.6j0.org
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+        - kind: Secret
+          name: eg-immich-6j0-org
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: alertmanager-6j0-org
+      hostname: alertmanager.6j0.org
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+        - kind: Secret
+          name: eg-alertmanager-6j0-org
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: grafana-6j0-org
+      hostname: grafana.6j0.org
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+        - kind: Secret
+          name: eg-grafana-6j0-org
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: prometheus-6j0-org
+      hostname: prometheus.6j0.org
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+        - kind: Secret
+          name: eg-prometheus-6j0-org
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: longhorn-6j0-org
+      hostname: longhorn.6j0.org
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+        - kind: Secret
+          name: eg-longhorn-6j0-org
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: youcandoithealth-com
+      hostname: youcandoithealth.com
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+        - kind: Secret
+          name: eg-youdcandoithealth-com
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: s3-garage-6j0-org
+      hostname: s3.garage.6j0.org
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+        - kind: Secret
+          name: eg-s3-garage-6j0-org
       allowedRoutes:
         namespaces:
           from: All
