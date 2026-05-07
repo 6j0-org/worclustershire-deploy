@@ -42,6 +42,10 @@ spec:
               name: eg
               namespace: envoy-gateway-system
 
+              # Add this to fix:
+              #   Warning  PresentError  103s                  cert-manager-challenges  Error presenting challenge: HTTPRoute.gateway.networking.k8s.io "cm-acme-http-solver-kzs9j" is invalid: spec.parentRefs: Invalid value: "array": sectionName must be unique when parentRefs includes 2 or more references to the same parent
+              sectionName: http
+
       # Cloudflare
       # - dns01:
       #     cloudflare:
