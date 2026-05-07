@@ -9,7 +9,8 @@ namespace: envoy-gateway-system
 
 resources:
   - namespace.yaml
-  - https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
+  # TODO I don't think we have to do this.
+  # - https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
   - ocirepo.yaml
   - release.yaml
 configMapGenerator:
