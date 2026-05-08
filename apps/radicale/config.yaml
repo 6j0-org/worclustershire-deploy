@@ -11,7 +11,7 @@ data:
     # type = email
 
     [sharing]
-    type = csv
+    type = files
     collection_by_token = true
     permit_create_token = true
 kind: ConfigMap
