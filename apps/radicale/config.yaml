@@ -13,6 +13,7 @@ data:
     [sharing]
     type = csv
     collection_by_token = true
+    permit_create_token = true
 kind: ConfigMap
 metadata:
   name: config
