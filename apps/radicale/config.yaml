@@ -5,6 +5,9 @@ data:
     type = htpasswd
     htpasswd_filename = /etc/radicale/users
     htpasswd_encryption = autodetect
+    [sharing]
+    type = map
+    storage_type = files
 kind: ConfigMap
 metadata:
   name: config
