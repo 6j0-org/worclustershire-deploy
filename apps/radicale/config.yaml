@@ -3,11 +3,16 @@ data:
   config: |
     [auth]
     type = htpasswd
-    htpasswd_filename = /etc/radicale/users
-    htpasswd_encryption = autodetect
+    htpasswd_encryption = bcrypt
+
+    # Hook binding for event changes and deletion notifications.
+    # https://radicale.org/v3.html#hook-1
+    # [hook]
+    # type = email
+
     [sharing]
-    type = map
-    storage_type = files
+    type = csv
+    collection_by_token = true
 kind: ConfigMap
 metadata:
   name: config
