@@ -32,6 +32,21 @@ httpRoute:
         type: PathPrefix
         value: /
 
+args:
+  - -c
+  - /etc/copyparty/copyparty.conf
+
+initContainers:
+  - name: init-dirs
+    image: 9001/copyparty
+    command: ["sh", "-c", "mkdir -p /data/evans /data/andrea /data/corbin /data/rhys"]
+    volumeMounts:
+      - name: data
+        mountPath: /data
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+
 podSecurityContext:
   fsGroup: 1000
 
@@ -39,10 +54,6 @@ securityContext:
   runAsUser: 1000
   runAsGroup: 1000
   runAsNonRoot: true
-
-args:
-  - -c
-  - /etc/copyparty/copyparty.conf
 
 volumes:
   - name: data
