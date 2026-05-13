@@ -13,8 +13,8 @@ statefulSet:
 replicaCount: 1
 
 image:
-  repository: 9001/copyparty
-  tag: "latest"
+  repository: copyparty/ac
+  tag: 1.20.14
 
 service:
   port: 3923
