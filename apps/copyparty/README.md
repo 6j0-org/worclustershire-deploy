@@ -17,27 +17,32 @@ Initial passwords are the same as the username. Change on first login:
 2. Navigate to your directory.
 3. Click the control panel (gear icon) → **Change password**
 
-To regenerate a hash (e.g. after changing a password):
+Copyparty uses a global static salt for password hashing. The salt is set via `ah-salt` in the config file — all hashes must be generated with the **exact same salt**. To regenerate a hash (e.g. after changing a password):
 
 ```
-docker run --rm copyparty/ac --ah-alg argon2 --ah-gen alice:newpassword
+docker run --rm copyparty/ac \
+  --ah-alg argon2 \
+  --ah-salt AhyVPEpCVEFzj6/ctVvZGjsloMidpgcs \
+  --ah-gen alice:newpassword
 ```
 
-This uses copyparty's own argon2 defaults (argon2id, time=3, mem=256MiB, par=4, len=24). The output is a `+`-prefixed hash, e.g. `+kvRKsOtL4_wJhALF9N1CC4Kf_NB30OrR`.
+The `--ah-salt` value **must match** what's in the config file. The output is a `+`-prefixed hash, e.g. `+pOCaAVhbsMlpos87d6_XJHkxXXDFvgx0`.
 
-Alternatively, generate with Python (must match copyparty's parameters exactly):
+Alternatively, generate with Python using the same salt:
 
 ```python
-import argon2, argon2.low_level, base64, os
+import argon2, argon2.low_level, base64
 
-salt = os.urandom(16)
-h = argon2.low_level.hash_secret_raw(
-    b"newpassword", salt,
-    time_cost=3, memory_cost=262144,
+SALT = b"AhyVPEpCVEFzj6/ctVvZGjsloMidpgcs"  # must match config!
+
+bret = argon2.low_level.hash_secret(
+    secret=b"newpassword", salt=SALT,
+    time_cost=3, memory_cost=256 * 1024,
     parallelism=4, hash_len=24,
-    type=argon2.low_level.Type.ID
+    type=argon2.low_level.Type.ID, version=19,
 )
-print("+" + base64.urlsafe_b64encode(h).rstrip(b"=").decode())
+hash = bret.split(b"$")[-1].decode().replace("/", "_").replace("+", "-")
+print("+" + hash)
 ```
 
 Edit `copyparty.secrets.yaml.decrypted` with the new hash, then run `./encrypt_secrets.sh` and commit.
