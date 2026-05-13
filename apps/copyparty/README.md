@@ -21,7 +21,23 @@ To regenerate a hash (e.g. after changing a password):
 
 ```
 docker run --rm copyparty/ac --ah-alg argon2 --ah-gen alice:newpassword
-# Output: +<hash>
+```
+
+This uses copyparty's own argon2 defaults (argon2id, time=3, mem=256MiB, par=4, len=24). The output is a `+`-prefixed hash, e.g. `+kvRKsOtL4_wJhALF9N1CC4Kf_NB30OrR`.
+
+Alternatively, generate with Python (must match copyparty's parameters exactly):
+
+```python
+import argon2, argon2.low_level, base64, os
+
+salt = os.urandom(16)
+h = argon2.low_level.hash_secret_raw(
+    b"newpassword", salt,
+    time_cost=3, memory_cost=262144,
+    parallelism=4, hash_len=24,
+    type=argon2.low_level.Type.ID
+)
+print("+" + base64.urlsafe_b64encode(h).rstrip(b"=").decode())
 ```
 
 Edit `copyparty.secrets.yaml.decrypted` with the new hash, then run `./encrypt_secrets.sh` and commit.
@@ -35,8 +51,10 @@ Edit `copyparty.secrets.yaml.decrypted` with the new hash, then run `./encrypt_s
 2. Add the hash to the `[accounts]` section in `copyparty.secrets.yaml.decrypted`.
 3. Add a volume to the config:
    ```
-   [username]
-     /data/username:rw:username
+   [/username]
+     /data/username
+     accs:
+       rw: username
    ```
 4. Add `mkdir -p /data/username` to the `init-dirs` initContainer command in `values.yaml`.
 5. Run `./encrypt_secrets.sh` and commit.
