@@ -1,0 +1,62 @@
+workloadType: "StatefulSet"
+
+statefulSet:
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+
+replicaCount: 1
+
+image:
+  repository: 9001/copyparty
+  tag: "latest"
+
+service:
+  port: 3923
+
+httpRoute:
+  enabled: true
+  parentRefs:
+  - name: eg
+    namespace: envoy-gateway-system
+  hostnames:
+  - copyparty.6j0.org
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+
+volumes:
+  - name: data
+volumeMounts:
+  - name: data
+    mountPath: "/data"
+
+startupProbe:
+  httpGet:
+    path: /
+    port: http
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+
+resources: {}

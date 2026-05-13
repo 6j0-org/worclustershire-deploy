@@ -37,5 +37,6 @@ resources:
   - garage.yaml
   - hatsmith.yaml
   - radicale.yaml
+  - copyparty.yaml
 patchesStrategicMerge:
   - flux-resources-patch.yaml

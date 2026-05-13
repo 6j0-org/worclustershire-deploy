@@ -29,6 +29,20 @@ spec:
         namespaces:
           from: All
 
+    # HTTPS listener for copyparty.6j0.org
+    - name: copyparty-6j0-org
+      hostname: "copyparty.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: copyparty-6j0-org-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+
     # *.6j0.org does NOT match deeper subdomains. Separate wildcards for garage:
     # - name: wildcard-s3-garage-6j0-org
     #   hostname: "*.s3.garage.6j0.org"
