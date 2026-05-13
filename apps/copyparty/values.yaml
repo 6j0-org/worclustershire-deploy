@@ -40,11 +40,21 @@ securityContext:
   runAsGroup: 1000
   runAsNonRoot: true
 
+args:
+  - -c
+  - /etc/copyparty/copyparty.conf
+
 volumes:
   - name: data
+  - name: copyparty-config
+    secret:
+      secretName: copyparty-config
 volumeMounts:
   - name: data
     mountPath: "/data"
+  - name: copyparty-config
+    mountPath: "/etc/copyparty"
+    readOnly: true
 
 startupProbe:
   httpGet:

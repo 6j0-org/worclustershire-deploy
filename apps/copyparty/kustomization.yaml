@@ -9,6 +9,7 @@ namespace: copyparty
 resources:
   - namespace.yaml
   - ocirepo.yaml
+  - copyparty.secrets.yaml
   - release.yaml
 configMapGenerator:
   - name: copyparty-values
