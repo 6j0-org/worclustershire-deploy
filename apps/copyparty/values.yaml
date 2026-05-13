@@ -38,7 +38,7 @@ args:
 
 initContainers:
   - name: init-dirs
-    image: 9001/copyparty
+    image: busybox
     command: ["sh", "-c", "mkdir -p /data/evans /data/andrea /data/corbin /data/rhys"]
     volumeMounts:
       - name: data
