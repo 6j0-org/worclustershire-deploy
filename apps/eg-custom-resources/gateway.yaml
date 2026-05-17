@@ -75,6 +75,20 @@ spec:
     #   hostname: 6j0.org
     #   ...
 
+    # HTTPS listener for nextcloud.6j0.org (individual cert via HTTP01)
+    - name: nextcloud-6j0-org
+      hostname: "nextcloud.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: nextcloud-6j0-org-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+
     # Non-6j0.org domain — needs its own cert.
     - name: youcandoithealth-com
       hostname: youcandoithealth.com

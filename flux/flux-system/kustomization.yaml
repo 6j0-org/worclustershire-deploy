@@ -38,5 +38,6 @@ resources:
   - hatsmith.yaml
   - radicale.yaml
   - copyparty.yaml
+  - nextcloud-aio.yaml
 patchesStrategicMerge:
   - flux-resources-patch.yaml
