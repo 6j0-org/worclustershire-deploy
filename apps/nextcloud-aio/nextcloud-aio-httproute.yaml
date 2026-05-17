@@ -6,7 +6,7 @@ spec:
   parentRefs:
     - name: eg
       namespace: envoy-gateway-system
-      sectionName: nextcloud-6j0-org
+      # sectionName: nextcloud-6j0-org
   hostnames:
     - nextcloud.6j0.org
   rules:
