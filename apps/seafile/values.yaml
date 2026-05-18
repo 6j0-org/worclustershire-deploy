@@ -3,6 +3,7 @@ seafile:
   configs: {} # seafile container configurations, object
   env:
     SEAFILE_SERVER_HOSTNAME: "seafile.6j0.org"
+    INIT_SEAFILE_ADMIN_EMAIL: "admin@6j0.org"                         # initMode requires this; password in seafile-secret.secrets.yaml
     SEAFILE_MYSQL_DB_HOST: "mariadb.seafile.svc.cluster.local" # environment variables for seafile service, object
   secretsMap: {} # seafile services secrets env, object
 
