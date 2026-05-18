@@ -32,9 +32,10 @@ initContainers:
         mountPath: "/app/storage"
 
 securityContext:
-  runAsUser: 1001
-  runAsGroup: 1001
-  runAsNonRoot: true
+  # Container starts as root so the entrypoint's su-exec can drop to oxicloud (uid 1001).
+  # The entrypoint handles privilege dropping before the app binary runs. Keep
+  # fsGroup so PVCs are group-writable; the initContainer does the initial chown.
+  runAsNonRoot: false
 
 service:
   port: 8086
