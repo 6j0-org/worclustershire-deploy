@@ -4,21 +4,6 @@ kind: HelmRelease
 metadata:
   name: immich
 spec:
-  # HelmRepository example
-  # chart:
-  #   spec:
-  #     chart: immich
-  #     version: 0.0.0
-  #     sourceRef:
-  #       kind: HelmRepository
-  #       name: prometheus-community
-
-  # OCIRepository example
-  # chartRef:
-  #   kind: OCIRepository
-  #   name: devopscoop-app
-  #   # TODO: Is namespace needed?
-  #   # namespace: immich
   interval: 10m
   valuesFrom:
     - kind: ConfigMap

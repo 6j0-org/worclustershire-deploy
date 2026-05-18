@@ -4,23 +4,6 @@ kind: HelmRelease
 metadata:
   name: app-template
 spec:
-
-  # HelmRepository example
-  # chart:
-  #   spec:
-  #     chart: app-template
-  #     version: 0.0.0
-  #     sourceRef:
-  #       kind: HelmRepository
-  #       name: prometheus-community
-
-  # OCIRepository example
-  # chartRef:
-  #   kind: OCIRepository
-  #   name: devopscoop-app
-  #   # TODO: Is namespace needed?
-  #   # namespace: app-template
-
   interval: 10m
   valuesFrom:
     - kind: ConfigMap

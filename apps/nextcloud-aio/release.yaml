@@ -4,21 +4,6 @@ kind: HelmRelease
 metadata:
   name: nextcloud-aio
 spec:
-  # HelmRepository example
-  # chart:
-  #   spec:
-  #     chart: nextcloud-aio
-  #     version: 0.0.0
-  #     sourceRef:
-  #       kind: HelmRepository
-  #       name: prometheus-community
-
-  # OCIRepository example
-  # chartRef:
-  #   kind: OCIRepository
-  #   name: devopscoop-app
-  #   # TODO: Is namespace needed?
-  #   # namespace: nextcloud-aio
   interval: 10m
   timeout: 30m
   install:

@@ -4,21 +4,6 @@ kind: HelmRelease
 metadata:
   name: seafile
 spec:
-  # HelmRepository example
-  # chart:
-  #   spec:
-  #     chart: seafile
-  #     version: 0.0.0
-  #     sourceRef:
-  #       kind: HelmRepository
-  #       name: prometheus-community
-
-  # OCIRepository example
-  # chartRef:
-  #   kind: OCIRepository
-  #   name: devopscoop-app
-  #   # TODO: Is namespace needed?
-  #   # namespace: seafile
   interval: 10m
   timeout: 30m
   install:
