@@ -36,7 +36,10 @@ resources:
   - copyparty.yaml
   - nextcloud-aio.yaml
   # - oxicloud.yaml
-  - seafile.yaml
-  - seafile-mariadb.yaml
+
+  #  seafile ValueError: Invalid CACHE_PROVIDER: database
+  # - seafile.yaml
+  # - seafile-mariadb.yaml
+
 patchesStrategicMerge:
   - flux-resources-patch.yaml
