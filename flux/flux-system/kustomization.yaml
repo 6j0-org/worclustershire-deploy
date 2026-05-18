@@ -35,7 +35,7 @@ resources:
   - radicale.yaml
   - copyparty.yaml
   - nextcloud-aio.yaml
-  - oxicloud.yaml
+  # - oxicloud.yaml
   - seafile.yaml
   - seafile-mariadb.yaml
 patchesStrategicMerge:
