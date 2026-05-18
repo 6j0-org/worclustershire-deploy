@@ -20,6 +20,10 @@ spec:
   #   # TODO: Is namespace needed?
   #   # namespace: nextcloud-aio
   interval: 10m
+  timeout: 30m
+  install:
+    remediation:
+      retries: 3
   valuesFrom:
     - kind: ConfigMap
       name: nextcloud-aio-values

@@ -5,6 +5,10 @@ metadata:
   name: oxicloud
 spec:
   interval: 10m
+  timeout: 30m
+  install:
+    remediation:
+      retries: 3
   valuesFrom:
     - kind: ConfigMap
       name: oxicloud-values

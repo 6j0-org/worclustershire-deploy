@@ -1,7 +1,8 @@
 seafile:
   initMode: true
   configs: {} # seafile container configurations, object
-  env: {} # environment variables for seafile service, object
+  env:
+    SEAFILE_SERVER_HOSTNAME: "seafile.6j0.org" # environment variables for seafile service, object
   secretsMap: {} # seafile services secrets env, object
 
   # extra infomations object(frontend, backend)

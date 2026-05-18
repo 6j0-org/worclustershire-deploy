@@ -20,6 +20,13 @@ spec:
   #   # TODO: Is namespace needed?
   #   # namespace: radicale
   interval: 10m
+  timeout: 30m
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
   valuesFrom:
     - kind: ConfigMap
       name: radicale-values
