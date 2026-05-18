@@ -11,13 +11,12 @@ resources:
   - namespace.yaml
   - helmrepo.yaml
   - release.yaml
-  - seafile-secret.secrets.yaml
 configMapGenerator:
-  - name: seafile-values
+  - name: seafile-mariadb-values
     files:
       - values.yaml=values.yaml
 secretGenerator:
-  - name: seafile-secrets
+  - name: seafile-mariadb-secrets
     files:
       - values.yaml=helm_secrets.yaml
 configurations:

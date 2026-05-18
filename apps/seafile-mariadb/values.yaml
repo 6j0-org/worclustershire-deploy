@@ -1,0 +1,10 @@
+fullnameOverride: "mariadb"
+
+auth:
+  database: seafile
+  username: seafile
+
+primary:
+  persistence:
+    storageClass: longhorn-crypto-global
+    size: 10Gi

@@ -2,12 +2,12 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: seafile
+  name: seafile-mariadb
 spec:
   # HelmRepository example
   # chart:
   #   spec:
-  #     chart: seafile
+  #     chart: seafile-mariadb
   #     version: 0.0.0
   #     sourceRef:
   #       kind: HelmRepository
@@ -18,21 +18,17 @@ spec:
   #   kind: OCIRepository
   #   name: devopscoop-app
   #   # TODO: Is namespace needed?
-  #   # namespace: seafile
+  #   # namespace: seafile-mariadb
   interval: 10m
-  timeout: 30m
-  install:
-    remediation:
-      retries: 3
   valuesFrom:
     - kind: ConfigMap
-      name: seafile-values
+      name: seafile-mariadb-values
     - kind: Secret
-      name: seafile-secrets
+      name: seafile-mariadb-secrets
   chart:
     spec:
-      chart: ce
-      version: 13.0.3
+      chart: mariadb
+      version: 25.1.2
       sourceRef:
         kind: HelmRepository
-        name: seafile
+        name: bitnami

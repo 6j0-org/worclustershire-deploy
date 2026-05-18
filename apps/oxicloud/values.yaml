@@ -23,7 +23,7 @@ podSecurityContext:
 
 initContainers:
   - name: fix-storage-perms
-    image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+    image: "diocrafts/oxicloud:0.5.6"
     command: ["chown", "-R", "1001:1001", "/app/storage"]
     securityContext:
       runAsUser: 0
