@@ -1,0 +1,18 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: oxicloud-db
+spec:
+  instances: 1
+  storage:
+    size: 5Gi
+    storageClass: longhorn-crypto-global-dangerous
+  bootstrap:
+    initdb:
+      database: oxicloud
+      owner: oxicloud
+      secret:
+        name: oxicloud-db
+  monitoring:
+    customQueriesConfigMap:
+      - name: cnpg-prometheus-apiserver

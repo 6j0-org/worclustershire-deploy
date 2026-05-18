@@ -1,0 +1,15 @@
+# https://fluxcd.io/flux/components/helm/helmreleases/
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: oxicloud
+spec:
+  interval: 10m
+  valuesFrom:
+    - kind: ConfigMap
+      name: oxicloud-values
+    - kind: Secret
+      name: oxicloud-secrets
+  chartRef:
+    kind: OCIRepository
+    name: devopscoop-app
