@@ -36,5 +36,6 @@ resources:
   - copyparty.yaml
   - nextcloud-aio.yaml
   - oxicloud.yaml
+  - seafile.yaml
 patchesStrategicMerge:
   - flux-resources-patch.yaml
