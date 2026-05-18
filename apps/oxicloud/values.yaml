@@ -16,10 +16,12 @@ image:
   repository: diocrafts/oxicloud
   tag: "0.5.6"
 
-# The container's entrypoint expects to chown /app/storage before dropping to uid 1001.
-# A root initContainer handles the chown so the main container can stay non-root.
+# Run container directly as uid 1001, bypassing entrypoint.sh (which uses su-exec
+# that fails with "setgroups: Operation not permitted" when fsGroup is set).
 podSecurityContext:
   fsGroup: 1001
+
+command: ["/app/oxicloud"]
 
 initContainers:
   - name: fix-storage-perms
@@ -32,10 +34,9 @@ initContainers:
         mountPath: "/app/storage"
 
 securityContext:
-  # Container starts as root so the entrypoint's su-exec can drop to oxicloud (uid 1001).
-  # The entrypoint handles privilege dropping before the app binary runs. Keep
-  # fsGroup so PVCs are group-writable; the initContainer does the initial chown.
-  runAsNonRoot: false
+  runAsUser: 1001
+  runAsGroup: 1001
+  runAsNonRoot: true
 
 service:
   port: 8086
