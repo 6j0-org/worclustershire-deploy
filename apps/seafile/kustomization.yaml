@@ -12,6 +12,7 @@ resources:
   - helmrepo.yaml
   - release.yaml
   - seafile-secret.secrets.yaml
+  - seafile-httproute.yaml
 configMapGenerator:
   - name: seafile-values
     files:
