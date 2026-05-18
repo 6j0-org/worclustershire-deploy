@@ -43,7 +43,7 @@ Registration: adding an app creates `flux/flux-system/<name>.yaml` (a Kustomizat
 
 - **Volume permissions**: pods running as non-root need `podSecurityContext.fsGroup` set to the container's gid so PVCs are writable. Example: radicale uses `fsGroup: 1000`.
 - **OCI vs Helm repo**: `deploy_new_app.sh` auto-configures based on whether `repo_url` starts with `oci:`. If switching later, swap `helmrepo.yaml` ↔ `ocirepo.yaml` references in `kustomization.yaml` and update `release.yaml` `.spec.chartRef` or `.spec.chart`.
-- **Image automation**: `deploy_new_app.sh` adds an ImageRepository + ImagePolicy for `ghcr.io/dfinity-ops/<app_name>` to `flux/flux-system/imagerepositories.yaml` and `imagepolicies.yaml`. Update the image org/path if different.
+- **Image automation**: `deploy_new_app.sh` adds an ImageRepository + ImagePolicy for `ghcr.io/devopscoop/<app_name>` to `flux/flux-system/imagerepositories.yaml` and `imagepolicies.yaml`. Update the image org/path if different.
 
 ## Ingress / Gateway API
 

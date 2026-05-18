@@ -14,7 +14,7 @@ metadata:
   name: seafile
   namespace: flux-system
 spec:
-  image: ghcr.io/dfinity-ops/seafile
+  image: ghcr.io/devopscoop/seafile
   interval: 1m0s
   secretRef:
     name: sa-github-api
