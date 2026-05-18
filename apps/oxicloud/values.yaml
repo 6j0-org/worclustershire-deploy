@@ -21,7 +21,7 @@ image:
 podSecurityContext:
   fsGroup: 1001
 
-command: ["/app/oxicloud"]
+command: ["/usr/local/bin/oxicloud"]
 
 initContainers:
   - name: fix-storage-perms
