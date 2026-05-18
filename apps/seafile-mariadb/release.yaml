@@ -4,31 +4,12 @@ kind: HelmRelease
 metadata:
   name: seafile-mariadb
 spec:
-  # HelmRepository example
-  # chart:
-  #   spec:
-  #     chart: seafile-mariadb
-  #     version: 0.0.0
-  #     sourceRef:
-  #       kind: HelmRepository
-  #       name: prometheus-community
-
-  # OCIRepository example
-  # chartRef:
-  #   kind: OCIRepository
-  #   name: devopscoop-app
-  #   # TODO: Is namespace needed?
-  #   # namespace: seafile-mariadb
   interval: 10m
   valuesFrom:
     - kind: ConfigMap
       name: seafile-mariadb-values
     - kind: Secret
       name: seafile-mariadb-secrets
-  chart:
-    spec:
-      chart: mariadb
-      version: 25.1.2
-      sourceRef:
-        kind: HelmRepository
-        name: bitnami
+  chartRef:
+    kind: OCIRepository
+    name: bitnami-mariadb
