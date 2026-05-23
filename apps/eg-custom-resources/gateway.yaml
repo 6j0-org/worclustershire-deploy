@@ -13,6 +13,48 @@ spec:
       port: 80
       allowedRoutes:
         namespaces:
+          from: Same
+
+    # HTTPS listener for longhorn.6j0.org
+    - name: longhorn-6j0-org
+      hostname: "longhorn.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: longhorn-6j0-org-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+
+    # HTTPS listener for immich.6j0.org
+    - name: immich-6j0-org
+      hostname: "immich.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: immich-6j0-org-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+
+    # HTTPS listener for grafana.6j0.org
+    - name: grafana-6j0-org
+      hostname: "grafana.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: grafana-6j0-org-tls
+      allowedRoutes:
+        namespaces:
           from: All
 
     # HTTPS listener for radicale.6j0.org (individual cert via HTTP01)
@@ -43,32 +85,45 @@ spec:
         namespaces:
           from: All
 
-    # *.6j0.org does NOT match deeper subdomains. Separate wildcards for garage:
-    # - name: wildcard-s3-garage-6j0-org
-    #   hostname: "*.s3.garage.6j0.org"
-    #   protocol: HTTPS
-    #   port: 443
-    #   tls:
-    #     mode: Terminate
-    #     certificateRefs:
-    #       - kind: Secret
-    #         name: eg-wildcard-s3-garage-6j0-org
-    #   allowedRoutes:
-    #     namespaces:
-    #       from: All
+    # HTTPS listeners for garage subdomains
+    - name: s3-garage-6j0-org
+      hostname: "s3.garage.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: eg-s3-garage-6j0-org-tls
+      allowedRoutes:
+        namespaces:
+          from: All
 
-    # - name: wildcard-web-garage-6j0-org
-    #   hostname: "*.web.garage.6j0.org"
-    #   protocol: HTTPS
-    #   port: 443
-    #   tls:
-    #     mode: Terminate
-    #     certificateRefs:
-    #       - kind: Secret
-    #         name: eg-wildcard-web-garage-6j0-org
-    #   allowedRoutes:
-    #     namespaces:
-    #       from: All
+    - name: wildcard-s3-garage-6j0-org
+      hostname: "*.s3.garage.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: eg-wildcard-s3-garage-6j0-org-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+
+    - name: wildcard-web-garage-6j0-org
+      hostname: "*.web.garage.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: eg-wildcard-web-garage-6j0-org-tls
+      allowedRoutes:
+        namespaces:
+          from: All
 
     # Apex 6j0.org is NOT covered by *.6j0.org. Add a listener if/when needed.
     # - name: apex-6j0-org
