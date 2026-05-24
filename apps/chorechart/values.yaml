@@ -1,12 +1,9 @@
 replicaCount: 1
-
 image:
   repository: ghcr.io/andreajtucker/chorechart
-  tag: latest # {"$imagepolicy": "flux-system:chorechart:tag"}
-
+  tag: dev-dd6c3e1-1779414888 # {"$imagepolicy": "flux-system:chorechart:tag"}
 service:
   port: 3001
-
 httpRoute:
   enabled: true
   parentRefs:
@@ -19,7 +16,6 @@ httpRoute:
         - path:
             type: PathPrefix
             value: /
-
 env:
   - name: DATABASE_URL
     valueFrom:
