@@ -16,6 +16,7 @@ resources:
   - longhorn-crypto-global-dangerous.sc.yaml
   - longhorn-crypto-rwx.sc.yaml
   - longhorn-httproute.yaml
+  - longhorn-auth-policy.yaml
 configMapGenerator:
   - name: longhorn-values
     files:
