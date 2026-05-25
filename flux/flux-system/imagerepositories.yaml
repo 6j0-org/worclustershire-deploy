@@ -11,6 +11,15 @@ spec:
 apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImageRepository
 metadata:
+  name: chorechart
+  namespace: flux-system
+spec:
+  image: ghcr.io/andreajtucker/chorechart
+  interval: 1m0s
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
   name: timetracker
   namespace: flux-system
 spec:

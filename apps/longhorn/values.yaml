@@ -14,6 +14,6 @@ defaultBackupStore:
   backupTargetCredentialSecret: evanstest
 
 # Ingress disabled - using Envoy Gateway HTTPRoute (see longhorn-httproute.yaml).
-# TODO: basic auth was provided by ingress-nginx annotations. Migrate to EG SecurityPolicy.
+# Basic auth via EG SecurityPolicy (see longhorn-auth-policy.yaml).
 ingress:
   enabled: false

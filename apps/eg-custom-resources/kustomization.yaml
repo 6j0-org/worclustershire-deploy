@@ -6,3 +6,4 @@ namespace: envoy-gateway-system
 resources:
   - gatewayclass.yaml
   - gateway.yaml
+  - tls-redirect.yaml
