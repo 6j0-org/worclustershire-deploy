@@ -1,0 +1,23 @@
+# https://fluxcd.io/flux/guides/helmreleases/#refer-to-values-in-configmaps-generated-with-kustomize
+# https://fluxcd.io/flux/guides/helmreleases/#refer-to-values-in-secret-generated-with-kustomize-and-sops
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: timetracker
+
+resources:
+  - namespace.yaml
+  - cloudnative-pg.yaml
+  - ocirepo.yaml
+  - release.yaml
+configMapGenerator:
+  - name: timetracker-values
+    files:
+      - values.yaml=values.yaml
+secretGenerator:
+  - name: timetracker-secrets
+    files:
+      - values.yaml=helm_secrets.yaml
+configurations:
+  - kustomizeconfig.yaml

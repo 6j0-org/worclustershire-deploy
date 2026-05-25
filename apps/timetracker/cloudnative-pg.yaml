@@ -1,0 +1,12 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: timetracker-db
+spec:
+  instances: 1
+  storage:
+    size: 50Mi
+  bootstrap:
+    initdb:
+      database: timetracker
+      owner: timetracker
