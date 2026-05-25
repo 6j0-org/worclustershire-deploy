@@ -158,6 +158,34 @@ spec:
         namespaces:
           from: All
 
+    # HTTPS listener for timetracker.6j0.org
+    - name: timetracker-6j0-org
+      hostname: "timetracker.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: timetracker-6j0-org-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+
+    # HTTPS listener for chorechart.6j0.org
+    - name: chorechart-6j0-org
+      hostname: "chorechart.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: chorechart-6j0-org-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+
     # Non-6j0.org domain — needs its own cert.
     - name: youcandoithealth-com
       hostname: youcandoithealth.com
