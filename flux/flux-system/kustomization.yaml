@@ -36,6 +36,7 @@ resources:
   - copyparty.yaml
   - nextcloud-aio.yaml
   - chorechart.yaml
+  - timetracker.yaml
   # - oxicloud.yaml
 
   #  seafile ValueError: Invalid CACHE_PROVIDER: database
