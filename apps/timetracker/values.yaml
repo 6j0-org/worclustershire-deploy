@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: ghcr.io/andreajtucker/timetracker
-  tag: dev-6bbc9f4-1779827610 # {"$imagepolicy": "flux-system:timetracker:tag"}
+  tag: dev-e6bf840-1779830028 # {"$imagepolicy": "flux-system:timetracker:tag"}
 service:
   port: 3001
 httpRoute:
