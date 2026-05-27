@@ -11,6 +11,8 @@ resources:
   - cloudnative-pg.yaml
   - ocirepo.yaml
   - release.yaml
+  - auth.secrets.yaml
+  - chorechart-auth-policy.yaml
 configMapGenerator:
   - name: chorechart-values
     files:

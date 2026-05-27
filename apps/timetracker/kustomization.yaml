@@ -11,6 +11,8 @@ resources:
   - cloudnative-pg.yaml
   - ocirepo.yaml
   - release.yaml
+  - auth.secrets.yaml
+  - timetracker-auth-policy.yaml
 configMapGenerator:
   - name: timetracker-values
     files:

@@ -53,3 +53,7 @@ Registration: adding an app creates `flux/flux-system/<name>.yaml` (a Kustomizat
 - DNS records are managed by **external-dns** with `--source=gateway-httproute` and `--domain-filter=6j0.org`. Adding a new HTTPRoute auto-creates the DNS record at Porkbun.
 - Charts without HTTPRoute support (longhorn, grafana, garage, immich) get a standalone `*-httproute.yaml` manifest in their app directory, added to `kustomization.yaml`'s `resources`.
 - **Basic auth** previously provided by ingress-nginx annotations is NOT migrated. See `apps/eg-custom-resources/TODO-basic-auth.md` for the EG `SecurityPolicy` migration plan.
+
+## Working in this repo
+
+- Always run `git pull` before making any edits or creating files.
