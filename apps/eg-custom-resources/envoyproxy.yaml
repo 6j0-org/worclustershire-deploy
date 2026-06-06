@@ -4,3 +4,14 @@ metadata:
   name: envoy-proxy-config
 spec:
   ipFamily: DualStack
+  provider:
+    kubernetes:
+      envoyService:
+        patch:
+          type: StrategicMerge
+          value:
+            spec:
+              ipFamilyPolicy: PreferDualStack
+              ipFamilies:
+                - IPv4
+                - IPv6
