@@ -1,0 +1,198 @@
+# IPv6 DualStack Envoy — Diagnosis & Plan
+# Session date: 2026-06-06
+# Repos: worclustershire-infra (Talos node configs), worclustershire-deploy (Flux/GitOps apps)
+
+================================================================================
+GOAL
+================================================================================
+Deploy an IPv6 DualStack Envoy Gateway LoadBalancer on the worclustershire
+Talos cluster. The Envoy config was mostly correct but DualStack was not
+working because it must be enabled at EVERY layer from the node up, and two
+foundational layers were missing it.
+
+Key mental model: an IPv6 LoadBalancer only works end-to-end if the Envoy PODS
+themselves get IPv6 pod IPs. Path: client -> MetalLB IPv6 -> node -> kube-proxy
+-> IPv6 endpoint. If envoy pods are IPv4-only, the IPv6 EndpointSlice is empty
+and the v6 VIP has no backends. So dual-stack PODS are mandatory, which means
+the CNI must do dual-stack. That is the real blocker, not Envoy.
+
+================================================================================
+LAYER-BY-LAYER STATUS (as found)
+================================================================================
+Layer                | Where                                              | Status
+---------------------|----------------------------------------------------|--------
+Node IPs             | worclustershire{1,2,3}.sops.yaml                   | OK   IPv6 addrs present (2603:8001:5800:8cf::4/64 etc.)
+Node IPv6 route      | same files                                         | BAD  ::/0 default route is commented out
+Pod/Service CIDRs    | cluster.network                                    | BAD  IPv4-only (10.244.0.0/16, 10.96.0.0/12)
+CNI                  | (none specified)                                   | WARN Default Flannel — not dual-stack out of the box
+MetalLB pool         | apps/metallb-custom-resources/ipaddresspool.yaml   | OK   IPv6 range present (2603:8001:5800:8cf::10-19)
+EnvoyProxy CR        | apps/eg-custom-resources/envoyproxy.yaml           | OK   ipFamily: DualStack + service patch correct
+GatewayClass wiring  | apps/eg-custom-resources/gatewayclass.yaml         | BAD  No parametersRef -> EnvoyProxy is ignored
+
+================================================================================
+THE TWO BLOCKERS
+================================================================================
+1. CLUSTER HAS NO IPv6 SERVICE NETWORK.
+   serviceSubnets is 10.96.0.0/12 only. A Service cannot get an IPv6 ClusterIP
+   if there is no IPv6 service CIDR, so ipFamilies: [IPv4, IPv6] on the Envoy
+   service has nothing to allocate from. Same for podSubnets.
+   HARD CONSTRAINT: kube-apiserver --service-cluster-ip-range is set at
+   bootstrap and an EXISTING range cannot be changed on a running cluster.
+   BUT we are ADDING an IPv6 range alongside IPv4, which is the officially
+   supported "convert single-stack to dual-stack" path (GA in k8s 1.34).
+   Open question is Talos-specific: does Talos apply added subnets in-place
+   (config patch + reboot) or insist on re-bootstrap? -> must validate.
+
+2. ENVOYPROXY CONFIG IS INERT.
+   The EnvoyProxy named envoy-proxy-config does nothing until the GatewayClass
+   references it via parametersRef. One-line-ish fix (see Phase 5).
+
+CNI note (#3): Talos default Flannel does not enable IPv6 unless told to;
+dual-stack is finicky. Decide CNI before re-bootstrapping.
+
+Node route note (#4): IPv6 ::/0 route commented out -> external IPv6 won't
+route for node egress. Confirm 2603:8001:5800:8cf::1 is the real gateway.
+
+================================================================================
+DECISIONS MADE THIS SESSION (user answers)
+================================================================================
+- Cluster state: HAS REAL DATA. Need a non-destructive path / migration plan.
+  Data-bearing apps: Longhorn (Wasabi offsite backups), cnpg /
+  cnpg-cluster-nextcloud (Postgres), rook-ceph / rook-ceph-cluster,
+  seafile-mariadb, immich, garage.
+- CNI: user asked for advice (see recommendation below).
+- Next step: WRITE A FULL PLAN FIRST. Do not edit anything yet.
+
+================================================================================
+CNI RECOMMENDATION
+================================================================================
+                 | Flannel (current)                  | Cilium
+-----------------|------------------------------------|---------------------------
+Dual-stack       | Supported; Talos writes net-conf   | First-class on Talos
+                 | with EnableIPv6 when subnets dual  |
+Change cost LIVE | LOW — already installed, just add  | HIGH — CNI swap restarts all
+                 | IPv6 pod subnet & reapply          | pod networking; brief outage
+Long-term        | Fine, minimal features             | Better (netpol, kube-proxy
+                 |                                    | replacement, observability)
+
+Recommendation tied to the data constraint:
+- IN-PLACE (keep data): STAY ON FLANNEL. Smallest blast radius; do not stack a
+  Flannel->Cilium migration on top of a CIDR change on a live data cluster.
+- IF REBUILDING: switch to CILIUM during the rebuild (downtime is already being
+  paid; cheapest moment to get the better platform).
+
+================================================================================
+NON-DESTRUCTIVE STRATEGY
+================================================================================
+We are adding an IPv6 family alongside IPv4 (supported dual-stack conversion),
+not changing the existing IPv4 range. Feasibility on Talos 1.11 is the only
+unknown, and it is cheap to prove. Plan has a VALIDATION GATE on a throwaway VM:
+  - In-place conversion takes  -> Path A (in-place, no data risk)
+  - It doesn't                 -> Path B (backup -> rebuild -> restore), using
+                                  existing Longhorn/Wasabi + CNPG + rook-ceph
+                                  backup machinery.
+
+================================================================================
+FULL PLAN
+================================================================================
+
+PHASE 0 — Pre-flight (no changes)
+  1. Inventory data-bearing apps; confirm each has a VERIFIED-RESTORABLE backup
+     (not just present). Do NOT proceed past Phase 1 until confirmed.
+  2. Pick IPv6 ranges (ULA internal; keep GUA 2603:.../64 for LAN/MetalLB):
+       podSubnets IPv6:     fd00:10:244::/64
+       serviceSubnets IPv6: fd00:10:96::/108   (k8s caps IPv6 svc CIDR at /108;
+                                                mask must be >= 108)
+       MetalLB IPv6 pool:   already 2603:8001:5800:8cf::10-19 (on-link in node
+                            /64, so L2/NDP works; delegated prefix already routed)
+  3. Order: IPv4 FIRST in every list (stays primary; PreferDualStack keeps v4
+     default).
+
+PHASE 1 — Validation gate (throwaway VM, do not touch prod)
+  4. Scratch single-node Talos mirroring prod cluster.network (IPv4-only).
+  5. Patch in second-family pod/service subnets, talosctl apply-config, reboot.
+  6. Check apiserver comes up with dual ranges and a new
+     ipFamilyPolicy: PreferDualStack service gets an IPv6 ClusterIP
+     (kubectl get svc -o yaml -> expect two clusterIPs).
+       Yes -> Path A (in-place).  Fails to converge -> Path B (rebuild).
+
+PHASE 2 — Cluster network -> dual-stack (worclustershire-infra)
+  Edit the APPLIED node configs worclustershire{1,2,3}.sops.yaml, cluster.network:
+       podSubnets:
+           - 10.244.0.0/16
+           - fd00:10:244::/64
+       serviceSubnets:
+           - 10.96.0.0/12
+           - fd00:10:96::/108
+  Uncomment node IPv6 default route (confirm ...::1 is the gateway):
+       routes:
+           - network: 0.0.0.0/0
+             gateway: 192.168.8.1
+           - network: "::/0"
+             gateway: 2603:8001:5800:8cf::1
+  Path A: talosctl apply-config to each node (README sops one-liner), rolling,
+          validate after each.
+  Path B: add same to controlplane.sops.yaml, regenerate, wipe, re-bootstrap,
+          install Cilium dual-stack instead of Flannel, restore data, continue.
+
+PHASE 3 — CNI dual-stack
+  Flannel (Path A): confirm Talos generated dual-stack net-conf.json
+     (kubectl -n kube-system get cm kube-flannel-cfg -o yaml -> expect
+      EnableIPv6: true + IPv6Network). Roll flannel DaemonSet if needed.
+  Cilium (Path B): install with ipv4.enabled=true ipv6.enabled=true + pod CIDRs.
+  Verify pods get v6:
+     kubectl run t --image=busybox --restart=Never -- sleep 3600
+     kubectl get pod t -o jsonpath='{.status.podIPs}'  -> expect two IPs.
+
+PHASE 4 — Service-level dual-stack smoke test
+  7. Throwaway LoadBalancer Service with ipFamilyPolicy: PreferDualStack,
+     ipFamilies: [IPv4, IPv6]. Expect two clusterIPs AND MetalLB assigns both a
+     v4 and v6 EXTERNAL-IP. THIS IS THE REAL GO/NO-GO — if this works, Envoy will.
+
+PHASE 5 — Wire up Envoy (worclustershire-deploy)
+  8. THE INERT-CONFIG FIX. Add parametersRef to
+     apps/eg-custom-resources/gatewayclass.yaml:
+         spec:
+           controllerName: gateway.envoyproxy.io/gatewayclass-controller
+           parametersRef:
+             group: gateway.envoyproxy.io
+             kind: EnvoyProxy
+             name: envoy-proxy-config
+             namespace: envoy-gateway-system
+     The envoyproxy.yaml (ipFamily: DualStack + ipFamilies/PreferDualStack
+     service patch) is already correct; it just needs this reference to take
+     effect. Commit/push; Flux reconciles.
+  9. Confirm: kubectl -n envoy-gateway-system get svc for the Envoy service ->
+     two clusterIPs + v4 AND v6 external IPs.
+
+PHASE 6 — DNS + external reachability
+  10. external-dns uses --source=gateway-httproute / --domain-filter=6j0.org.
+      Confirm it publishes AAAA records once the Gateway has an IPv6 LB IP
+      (ensure not filtered to A-only). Verify a test host resolves A + AAAA at
+      Porkbun.
+  11. curl -6 and curl -4 an existing host (e.g. https://longhorn.6j0.org)
+      end-to-end.
+
+PHASE 7 — Rollback notes
+  - Path A: remove IPv6 subnets and parametersRef, reapply. (Adding a family is
+    far easier to reverse than the rebuild path.)
+  - Keep the gatewayclass.yaml change separable from the infra change so Envoy
+    wiring can land/revert independently.
+
+================================================================================
+OPEN QUESTIONS / CONFIRM BEFORE EDITS
+================================================================================
+- ::/0 gateway 2603:8001:5800:8cf::1 — is that the real router gateway? Else
+  egress v6 black-holes.
+- external-dns AAAA behavior — verify running config publishes AAAA (only the
+  deploy-repo notes were read, not live args).
+- Entire plan hinges on the PHASE 1 VALIDATION GATE — prove in-place on a
+  scratch VM rather than guessing.
+
+================================================================================
+SUGGESTED NEXT ACTIONS (offered, not yet done)
+================================================================================
+(a) Draft exact SOPS-aware edits for Phase 2 + Phase 5, ready to apply after the
+    validation gate.
+(b) (this file) Save plan to repo.
+(c) Dig into live external-dns config first.
