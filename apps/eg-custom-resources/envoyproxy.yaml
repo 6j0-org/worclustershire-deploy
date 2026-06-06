@@ -3,10 +3,4 @@ kind: EnvoyProxy
 metadata:
   name: envoy-proxy-config
 spec:
-  component:
-    kubernetes:
-      service:
-        ipFamilyPolicy: PreferDualStack
-        ipFamilies:
-          - IPv4
-          - IPv6
+  ipFamily: DualStack
