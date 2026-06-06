@@ -15,6 +15,7 @@ resources:
   - imageupdateautomation.yaml
   - ingress-nginx.yaml
   - sops-age.secrets.yaml
+  - external-snapshotter.yaml
   - metallb.yaml
   - metallb-custom-resources.yaml
   - longhorn.yaml

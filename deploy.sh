@@ -157,7 +157,7 @@ case "$k8s_platform" in
     app_list="metallb.yaml metallb-custom-resources.yaml rook-ceph.yaml rook-ceph-cluster.yaml"
     ;;
   talos)
-    app_list="metallb.yaml metallb-custom-resources.yaml"
+    app_list="metallb.yaml metallb-custom-resources.yaml external-snapshotter.yaml longhorn.yaml"
     ;;
   *)
     echo "ERROR: k8s_platform invalid" >&2
