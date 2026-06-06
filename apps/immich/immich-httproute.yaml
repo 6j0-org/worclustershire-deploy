@@ -13,6 +13,9 @@ spec:
         - path:
             type: PathPrefix
             value: /
+      timeouts:
+        request: "0s"
+        backendRequest: "0s"
       backendRefs:
         - name: immich-server
           port: 2283
