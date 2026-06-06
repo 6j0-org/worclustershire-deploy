@@ -17,6 +17,7 @@ resources:
   - longhorn-crypto-rwx.sc.yaml
   - longhorn-httproute.yaml
   - longhorn-auth-policy.yaml
+  - longhorn-recurring-backup.yaml
 configMapGenerator:
   - name: longhorn-values
     files:

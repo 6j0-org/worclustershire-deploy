@@ -1,6 +1,6 @@
 # external-snapshotter
 
-Enables external-snapshotter (AKA CSI Snapshotter) support for clusters via the [external-snapshotter](https://github.com/kubernetes-csi/external-snapshotter/) project.
+Enables external-snapshotter (AKA CSI Snapshotter) support for clusters that don't have it built-in (like Talos) via the [external-snapshotter](https://github.com/kubernetes-csi/external-snapshotter/) project. AWS EKS clusters don't need this.
 
 The GitRepository source and Kustomizations live in `flux/flux-system/`:
 

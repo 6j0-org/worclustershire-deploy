@@ -1,0 +1,20 @@
+---
+# Daily backup of every volume to the backup target (Wasabi S3, see values.yaml).
+#
+# The special "default" group automatically includes any volume that has no
+# recurring job of its own. This covers all existing volumes AND any volume
+# created in the future, without needing per-volume labels.
+# https://longhorn.io/docs/1.10.1/snapshots-and-backups/scheduling-backups-and-snapshots/#add-a-recurring-job-to-the-default-group
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: daily-backup
+spec:
+  cron: "0 2 * * *"
+  task: backup
+  groups:
+    - default
+  # Keep the last 7 daily backups per volume on the backup target.
+  retain: 7
+  # Back up at most 2 volumes at a time to limit load.
+  concurrency: 2
