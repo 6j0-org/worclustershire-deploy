@@ -7,3 +7,4 @@ resources:
   - gatewayclass.yaml
   - gateway.yaml
   - tls-redirect.yaml
+  - envoyproxy.yaml
