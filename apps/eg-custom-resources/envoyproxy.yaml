@@ -5,6 +5,7 @@ metadata:
 spec:
   ipFamily: DualStack
   provider:
+    type: Kubernetes
     kubernetes:
       envoyService:
         patch:
