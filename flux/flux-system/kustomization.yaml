@@ -33,8 +33,8 @@ resources:
   - eg-custom-resources.yaml
   # - garage.yaml
   - hatsmith.yaml
-  - radicale.yaml
-  - copyparty.yaml
+  # - radicale.yaml
+  # - copyparty.yaml
   - nextcloud-aio.yaml
   # - chorechart.yaml
   - timetracker.yaml
