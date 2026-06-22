@@ -1,3 +1,5 @@
+# dyff between <(yq . <(helm show values oci://docker.io/envoyproxy/gateway-helm --version 1.7.2)) <(yq eval '. * load("values.yaml")' <(helm show values oci://docker.io/envoyproxy/gateway-helm --version 1.7.2))
+# vim -O <(helm show values oci://docker.io/envoyproxy/gateway-helm --version 1.7.2) values.yaml
 deployment:
   replicas: 2
 

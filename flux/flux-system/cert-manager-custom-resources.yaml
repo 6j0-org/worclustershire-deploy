@@ -6,7 +6,6 @@ metadata:
 spec:
   dependsOn:
     - name: cert-manager
-    # - name: cert-manager-webhook-porkbun
   interval: 10m0s
   sourceRef:
     kind: GitRepository

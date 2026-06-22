@@ -1,3 +1,5 @@
+# dyff between <(yq . <(helm show values oci://ghcr.io/valkey-io/valkey-helm/valkey --version 0.9.4)) <(yq eval '. * load("values.yaml")' <(helm show values oci://ghcr.io/valkey-io/valkey-helm/valkey --version 0.9.4))
+# vim -O <(helm show values oci://ghcr.io/valkey-io/valkey-helm/valkey --version 0.9.4) values.yaml
 resources: {}
   # Example:
   # limits:

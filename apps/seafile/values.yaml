@@ -1,3 +1,5 @@
+# dyff between <(yq . <(helm show values seafile/ce --version 13.0.3)) <(yq eval '. * load("values.yaml")' <(helm show values seafile/ce --version 13.0.3))
+# vim -O <(helm show values seafile/ce --version 13.0.3) values.yaml
 seafile:
   initMode: true
   configs: {} # seafile container configurations, object

@@ -8,7 +8,6 @@ resources:
   - gotk-sync.yaml
   - cert-manager-custom-resources.yaml
   - cert-manager.yaml
-  # - cert-manager-webhook-porkbun.yaml
   # - external-dns.yaml
   - imagepolicies.yaml
   - imagerepositories.yaml

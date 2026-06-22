@@ -1,3 +1,5 @@
+# dyff between <(yq . <(helm show values nextcloud-aio/nextcloud-aio-helm-chart --version 13.0.4)) <(yq eval '. * load("values.yaml")' <(helm show values nextcloud-aio/nextcloud-aio-helm-chart --version 13.0.4))
+# vim -O <(helm show values nextcloud-aio/nextcloud-aio-helm-chart --version 13.0.4) values.yaml
 NC_DOMAIN: nextcloud.6j0.org
 TIMEZONE: America/Los_Angeles
 APACHE_PORT: 8443

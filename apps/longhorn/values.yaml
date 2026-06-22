@@ -1,3 +1,5 @@
+# dyff between <(yq . <(helm show values longhorn/longhorn --version 1.10.1)) <(yq eval '. * load("values.yaml")' <(helm show values longhorn/longhorn --version 1.10.1))
+# vim -O <(helm show values longhorn/longhorn --version 1.10.1) values.yaml
 persistence:
   # Setting this to false, because we want to use the longhorn-crypto-global encrypted storageclass as the default.
   defaultClass: false

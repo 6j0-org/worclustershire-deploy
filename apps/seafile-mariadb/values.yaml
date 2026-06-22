@@ -1,3 +1,5 @@
+# dyff between <(yq . <(helm show values oci://registry-1.docker.io/bitnamicharts/mariadb --version 25.1.2)) <(yq eval '. * load("values.yaml")' <(helm show values oci://registry-1.docker.io/bitnamicharts/mariadb --version 25.1.2))
+# vim -O <(helm show values oci://registry-1.docker.io/bitnamicharts/mariadb --version 25.1.2) values.yaml
 fullnameOverride: "mariadb"
 
 auth:
