@@ -186,6 +186,20 @@ spec:
         namespaces:
           from: All
 
+    # HTTPS listener for peertube.6j0.org
+    - name: peertube-6j0-org
+      hostname: "peertube.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: peertube-6j0-org-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+
     # Non-6j0.org domain — needs its own cert.
     - name: youcandoithealth-com
       hostname: youcandoithealth.com
