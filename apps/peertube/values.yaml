@@ -1,0 +1,46 @@
+# dyff between <(yq . <(helm show values ananace-charts/peertube --version 1.7.5)) <(yq eval '. * load("values.yaml")' <(helm show values ananace-charts/peertube --version 1.7.5))
+# vim -O <(helm show values ananace-charts/peertube --version 1.7.5) values.yaml
+config:
+  # Public server name, used to configure both PeerTube and federation.
+  serverName: peertube.6j0.org
+
+  admin:
+    email: gmail@evanstucker.com
+
+  # No SMTP configured yet; clear the default `smtp` transport so the chart does
+  # not require a mail hostname. Set a transport + hostname here to enable email.
+  mail:
+    transport: ""
+
+# Ingress is handled by a standalone HTTPRoute (peertube-httproute.yaml) on the
+# Envoy Gateway, so the chart's built-in Ingress is left disabled (the default).
+
+# Use the CloudNativePG cluster (cloudnative-pg.yaml) instead of the bundled
+# Bitnami PostgreSQL subchart. CNPG auto-generates the `peertube-database-app`
+# secret (basic-auth) with the password for the `peertube` role.
+postgresql:
+  enabled: false
+externalPostgresql:
+  host: peertube-database-rw
+  database: peertube
+  username: peertube
+  existingSecret: peertube-database-app
+  existingSecretKey: password
+
+# The chart always renders `database.ssl: true` for an external DB (its helper
+# coerces a false value back to true). In-cluster traffic to CNPG doesn't need
+# TLS, and verifying CNPG's self-signed cert would fail, so disable it via the
+# PeerTube env override, which takes precedence over the config file.
+extraEnv:
+  - name: PEERTUBE_DB_SSL
+    value: "false"
+
+# Use the Valkey release (valkey.yaml) instead of the bundled Bitnami Redis
+# subchart. PeerTube authenticates as Valkey's `default` ACL user, whose password
+# lives in the shared `valkey-peertube-auth` secret under the `default` key.
+redis:
+  enabled: false
+externalRedis:
+  host: valkey-peertube
+  existingSecret: valkey-peertube-auth
+  existingSecretKey: default

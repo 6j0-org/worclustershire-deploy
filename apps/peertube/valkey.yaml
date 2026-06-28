@@ -1,0 +1,41 @@
+# Valkey instance backing PeerTube (replaces the chart's bundled Bitnami Redis).
+# https://fluxcd.io/flux/components/source/ocirepositories/
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: valkey-valkey
+spec:
+  interval: 10m
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: 0.9.4
+  url: oci://ghcr.io/valkey-io/valkey-helm/valkey
+---
+# https://fluxcd.io/flux/components/helm/helmreleases/
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: valkey-peertube
+spec:
+  interval: 10m
+  chartRef:
+    kind: OCIRepository
+    name: valkey-valkey
+  values:
+    replica:
+      enabled: false
+    podDisruptionBudget:
+      enabled: false
+    dataStorage:
+      enabled: true
+      requestedSize: "1Gi"
+    auth:
+      enabled: true
+      # Password for the `default` user is read from the shared secret under the
+      # key matching the username (`default`).
+      usersExistingSecret: valkey-peertube-auth
+      aclUsers:
+        default:
+          permissions: "~* &* +@all"
