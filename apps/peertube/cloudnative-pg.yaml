@@ -1,0 +1,20 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: peertube-database
+spec:
+  instances: 1
+
+  storage:
+    size: 8Gi
+
+  bootstrap:
+    initdb:
+      database: peertube
+      owner: peertube
+      # PeerTube requires these extensions; the application role is not a
+      # superuser, so create them here during bootstrap.
+      # ref: https://docs.joinpeertube.org/install/any-os#database
+      postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS pg_trgm;
+        - CREATE EXTENSION IF NOT EXISTS unaccent;
