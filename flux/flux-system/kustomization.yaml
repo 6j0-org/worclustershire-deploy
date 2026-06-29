@@ -39,10 +39,10 @@ resources:
   - timetracker.yaml
   # - oxicloud.yaml
   - peertube.yaml
-
   #  seafile ValueError: Invalid CACHE_PROVIDER: database
   # - seafile.yaml
   # - seafile-mariadb.yaml
 
+  - wiki.yaml
 patchesStrategicMerge:
   - flux-resources-patch.yaml
