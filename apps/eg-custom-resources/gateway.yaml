@@ -200,6 +200,20 @@ spec:
         namespaces:
           from: All
 
+    # HTTPS listener for hatsmith.6j0.org
+    - name: hatsmith-6j0-org
+      hostname: "hatsmith.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: hatsmith-6j0-org-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+
     # Non-6j0.org domain — needs its own cert.
     - name: youcandoithealth-com
       hostname: youcandoithealth.com
