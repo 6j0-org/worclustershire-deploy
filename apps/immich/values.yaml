@@ -5,6 +5,9 @@ controllers:
     strategy: Recreate
     containers:
       main:
+        image:
+          # Chart devs rejected my PR to bump image tag. They think a default install of the chart should install and outdated version of the app. I disagree. Oh well. Here we are...
+          tag: v3.0.2
         env:
           DB_HOSTNAME:
             valueFrom:
