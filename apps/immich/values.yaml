@@ -53,7 +53,10 @@ machine-learning:
   persistence:
     cache:
       # Optional: Set this to persistentVolumeClaim to avoid downloading the ML models every start.
+      # As of chart 0.13.0 the schema requires size/accessMode to be set explicitly here.
       type: persistentVolumeClaim
+      size: 10Gi
+      accessMode: ReadWriteMany
 
 
 # `kubectl get events` will throw a `Warning FailedAttachVolume pod/immich-server-76f6c87764-xgp2g Multi-Attach error for volume "pvc-aee375fc-e287-4380-a29e-1ea850eba23e" Volume is already used by pod(s) immich-server-6c9c88bc7d-6nzgc`
