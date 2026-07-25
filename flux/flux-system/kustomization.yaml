@@ -12,7 +12,7 @@ resources:
   - imagepolicies.yaml
   - imagerepositories.yaml
   - imageupdateautomation.yaml
-  - ingress-nginx.yaml
+  # - ingress-nginx.yaml
   - sops-age.secrets.yaml
   - external-snapshotter.yaml
   - metallb.yaml
@@ -22,8 +22,8 @@ resources:
   - cnpg.yaml
   # - metrics-server.yaml # Broken, see TODO in metrics-server dir.
 
-  - youcandoithealth.yaml
-  - descheduler.yaml
+  # - youcandoithealth.yaml
+  # - descheduler.yaml
   - kube-prometheus-stack.yaml
   # TODO: Needs S3 object storage
   # - loki.yaml
@@ -31,14 +31,14 @@ resources:
   - eg.yaml
   - eg-custom-resources.yaml
   # - garage.yaml
-  - hatsmith.yaml
+  # - hatsmith.yaml
   # - radicale.yaml
   # - copyparty.yaml
   - nextcloud-aio.yaml
   # - chorechart.yaml
   - timetracker.yaml
   # - oxicloud.yaml
-  - peertube.yaml
+  # - peertube.yaml
 
   #  seafile ValueError: Invalid CACHE_PROVIDER: database
   # - seafile.yaml
