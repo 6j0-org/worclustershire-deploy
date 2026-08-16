@@ -30,7 +30,7 @@ resources:
 
   - eg.yaml
   - eg-custom-resources.yaml
-  # - garage.yaml
+  - garage.yaml
   # - hatsmith.yaml
   # - radicale.yaml
   # - copyparty.yaml
@@ -43,6 +43,8 @@ resources:
   #  seafile ValueError: Invalid CACHE_PROVIDER: database
   # - seafile.yaml
   # - seafile-mariadb.yaml
+
+  - radicle.yaml
 
 patchesStrategicMerge:
   - flux-resources-patch.yaml
