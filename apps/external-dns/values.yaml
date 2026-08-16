@@ -13,54 +13,35 @@ policy: sync
 # If we have multiple k8s clusters writing to the same DNS zone, each external-dns needs a way to identify the records it owns. And since we can only have one external-dns provider per cluster, the setting this to the cluster name seems reasonable.
 txtOwnerId: worclustershire
 
-# Watch Gateway API resources (HTTPRoute) in addition to Ingresses/Services.
-sources:
-  - service
-  - ingress
-  - gateway-httproute
+# --- DNS provider: pick ONE. The fluxcd-template default is Cloudflare (below). ---
 
-# Cloudflare config based on:
+# AWS / Route53:
+# Uncomment this block, and authenticate via IRSA by annotating the
+# external-dns ServiceAccount with the IAM role ARN output by aws-eks-template
+# (external_dns_role_arn):
+# >>> eks: deploy.sh uncomments this block when k8s_platform=eks
+# serviceAccount:
+#   annotations:
+#     eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/external-dns"
+# <<< eks
+# provider:
+#   name: aws
+# domainFilters:
+#   - example.com   # restrict to the hosted zone(s) this cluster manages
+
+# Cloudflare:
 # https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/cloudflare.md
 # provider:
 #   name: cloudflare
 #   webhook:
-#     - --cloudflare-dns-records-per-page=5000
-#   env:
-#     - name: CF_API_TOKEN
-#       valueFrom:
-#         secretKeyRef:
-#           name: cloudflare-api-key
-#           key: apiKey
-
-# Porkbun webhook provider
-# https://github.com/konnektr-io/external-dns-porkbun-webhook
-# provider:
-#   name: webhook
-#   webhook:
-#     image:
-#       repository: ghcr.io/konnektr-io/external-dns-porkbun-webhook
-#       tag: v0.2.19
-#     securityContext:
-#       allowPrivilegeEscalation: false
-#       capabilities:
-#         drop:
-#           - ALL
-#       runAsNonRoot: false
 #     args:
-#       - --domain-filter=6j0.org
-#       - --domain-filter=youcandoithealth.com
-#       - --listen-address=0.0.0.0:8888
-#     env:
-#       - name: API_KEY
-#         valueFrom:
-#           secretKeyRef:
-#             name: porkbun-secret
-#             key: PORKBUN_API_KEY
-#       - name: API_SECRET
-#         valueFrom:
-#           secretKeyRef:
-#             name: porkbun-secret
-#             key: PORKBUN_SECRET_API_KEY
+#       - --cloudflare-dns-records-per-page=5000
+# env:
+#   - name: CF_API_TOKEN
+#     valueFrom:
+#       secretKeyRef:
+#         name: cloudflare-api-key
+#         key: apiKey
 
 resources:
   requests:
@@ -71,6 +52,14 @@ resources:
     # "resources.limits.cpu: Invalid type. Expected: string, given: null"
     memory: 100Mi
 
-extraArgs:
-  - --webhook-provider-read-timeout=30s
-  - --webhook-provider-write-timeout=30s
+sources:
+  - service
+  - ingress
+
+  # This is needed for external-dns to create records for Gateway API resources.
+  - gateway-httproute
+
+  # TCPRoutes carry no hostnames of their own, so records come from the
+  # external-dns.alpha.kubernetes.io/hostname annotation on the route. Used by
+  # apps/radicle/tcproute.yaml.
+  - gateway-tcproute

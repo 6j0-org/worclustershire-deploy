@@ -1,8 +1,8 @@
-# dyff between <(yq . <(helm show values oci://docker.io/envoyproxy/gateway-helm --version 1.7.2)) <(yq eval '. * load("values.yaml")' <(helm show values oci://docker.io/envoyproxy/gateway-helm --version 1.7.2))
-# vim -O <(helm show values oci://docker.io/envoyproxy/gateway-helm --version 1.7.2) values.yaml
+# Envoy Gateway controller (control plane). This is NOT the data-plane Envoy
+# proxy — proxy replicas/HA are set per-Gateway on the EnvoyProxy resources in
+# apps/eg-custom-resources/envoyproxy-public.yaml / -private.yaml.
 deployment:
   replicas: 2
-
 config:
   envoyGateway:
     provider:
