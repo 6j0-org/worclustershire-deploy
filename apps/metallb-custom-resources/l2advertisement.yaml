@@ -4,10 +4,5 @@ kind: L2Advertisement
 metadata:
   name: example
 spec:
-  # Every pool needs advertising here by name -- an address assigned from a
-  # pool that isn't listed is never ARP/NDP-announced on the LAN, so the
-  # Service looks healthy and answers nothing.
   ipAddressPools:
   - first-pool
-  - gateway-eg-public
-  - gateway-eg-private
