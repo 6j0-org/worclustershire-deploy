@@ -4,6 +4,8 @@ metadata:
   name: eg-custom-resources
   namespace: flux-system
 spec:
+  # The GatewayClass/EnvoyProxy/Gateway need the Envoy Gateway CRDs, which the
+  # eg HelmRelease installs. eg has wait: true, so this waits for it.
   dependsOn:
     - name: eg
   interval: 10m0s

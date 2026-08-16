@@ -1,5 +1,6 @@
-# dyff between <(yq . <(helm show values sonatype/nxrm-ha --version 82.0.0)) <(yq eval '. * load("values.yaml")' <(helm show values sonatype/nxrm-ha --version 82.0.0))
-# vim -O <(helm show values sonatype/nxrm-ha --version 82.0.0) values.yaml
+# dyff between <(yq . <(helm show values sonatype/nxrm-ha --version v82.0.0)) <(yq eval '. * load("values.yaml")' <(helm show values sonatype/nxrm-ha --version v82.0.0))
+# vim -O <(helm show values sonatype/nxrm-ha --version v82.0.0) values.yaml
+
 ingress:
   enabled: true
   annotations:
@@ -19,6 +20,16 @@ ingress:
 persistence:
   enabled: true
   size: 8Gi
+
+# Nexus is slow to start and its PVC currently also holds the blob stores
+# (blobStores below is empty), so a spot reclaim means repository downtime and
+# a slow recovery. Pin it to on-demand capacity, per the NodePool contract in
+# apps/karpenter-custom-resources/nodepool.yaml.
+# >>> eks: deploy.sh uncomments this block when k8s_platform=eks
+# statefulset:
+#   nodeSelector:
+#     karpenter.sh/capacity-type: on-demand
+# <<< eks
 
 metrics:
   enabled: true

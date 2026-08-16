@@ -1,0 +1,14 @@
+{
+  "node": {
+    "alias": "radicle.6j0.org",
+    "listen": [
+      "0.0.0.0:8776"
+    ],
+    "externalAddresses": [
+      "radicle.6j0.org:8776"
+    ],
+    "seedingPolicy": {
+      "default": "block"
+    }
+  }
+}

@@ -3,7 +3,6 @@
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
-  # ${org_name}-${chart_name}
   name: eg-gateway-helm
 spec:
   interval: 10m
@@ -12,7 +11,4 @@ spec:
     operation: copy
   ref:
     tag: 1.7.2
-  # For private OCI repos, use a kubernetes.io/dockerconfigjson secret
-  # secretRef:
-  #   name: registry-auth
   url: oci://docker.io/envoyproxy/gateway-helm

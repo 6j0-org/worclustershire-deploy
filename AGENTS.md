@@ -1,103 +1,85 @@
 # AGENTS.md
 
-`worclustershire-deploy` — Kubernetes cluster managed by Flux CD (GitOps). K8s platform: Talos.
+Instructions for AI coding agents working in this repo. `CLAUDE.md` is a symlink to this file — edit this one, and keep the symlink intact (pre-commit's `check-symlinks`/`destroyed-symlinks` hooks will fail if it gets replaced with a regular file).
 
-Cluster identity lives in `variables.sh`: cluster `worclustershire`, repo `github.com/6j0-org/worclustershire-deploy`, `KUBECONFIG=~/.kube/worclustershire`. That file also pins the flux/kubectl/sops/yq versions `deploy.sh` installs.
+This is a FluxCD GitOps template: one git repo per cluster. There is no build and no test suite — the "build" is Flux reconciling this repo into a cluster, so correctness work is validating manifests and conventions before commit.
 
-## Commands
+## How a deploy is wired together
 
-- `./deploy.sh` — bootstrap Flux, install managed binaries (kubectl, flux, sops, yq) into `bin/<os>-<arch>/`, reconcile. **It commits and pushes to `main` on its own** (with `git commit -n`) for each step that changes files; don't run it casually.
-- `./deploy_new_app.sh app_name repo_name repo_url chart_name chart_version` — scaffold a new app from `apps/templates/helm/`, set up HelmRepository or OCIRepository, register with flux-system
-- `./encrypt_secrets.sh` — encrypt all `*.yaml.decrypted` files via sops (runs automatically during deploy_new_app)
-- Decrypt/view secrets: `sops apps/<app>/helm_secrets.yaml` (opens in editor; never edit with vim/cat)
-- Test helm values locally: `helm install <app> <repo>/<chart> --values values.yaml --values <(sops -d helm_secrets.yaml)`
-- Render an app the way Flux will: `kubectl kustomize apps/<app>` (no decryption happens — encrypted secret bodies render verbatim)
-- Diff your overrides against chart defaults: use the `dyff`/`vim` one-liners at the top of each `values.yaml` (see below)
+Two layers, and both must be edited to ship an app:
 
-## App structure (`apps/<name>/`)
+1. `flux/flux-system/<app>.yaml` — a Flux `Kustomization` (`kustomize.toolkit.fluxcd.io/v1`) whose `spec.path` points at `apps/<app>`. Every one carries the same SOPS `decryption` block so it can decrypt secrets in that directory.
+2. `apps/<app>/` — the actual manifests, assembled by a kustomize `Kustomization`.
 
-Each app is a kustomize directory managed by a HelmRelease. Files:
+`flux/flux-system/kustomization.yaml`'s `resources` list is the on/off switch: an app in `apps/` with a Kustomization in `flux/flux-system/` still does not deploy until its filename is in that list. `deploy.sh` (per-platform app lists) and `deploy_new_app.sh --deploy` both append to it with `yq ... | unique`.
 
-| File                              | Purpose                                                                        |
-| --------------------------------- | ------------------------------------------------------------------------------ |
-| `kustomization.yaml`              | Generates ConfigMap from `values.yaml` and Secret from `helm_secrets.yaml`     |
-| `values.yaml`                     | Non-secret helm overrides (trim defaults; only keep changed values)            |
-| `helm_secrets.yaml`               | SOPS-encrypted secrets (passwords, tokens) — edit via `sops`, never plain text |
-| `release.yaml`                    | HelmRelease referencing the generated ConfigMap and Secret                     |
-| `helmrepo.yaml` or `ocirepo.yaml` | Source repository definition (only one active)                                 |
-| `namespace.yaml`                  | Namespace manifest                                                             |
-| `kustomizeconfig.yaml`            | ConfigMap/Secret generator config                                              |
+Ordering between apps is expressed with `spec.dependsOn` in `flux/flux-system/*.yaml`, referencing another Kustomization by `metadata.name`. The `*-custom-resources` apps exist precisely for this: CRs that need their operator's CRDs installed first (`cert-manager-custom-resources` → `cert-manager`, `eg-custom-resources` → `eg`, `metallb-custom-resources` → `metallb`, `rook-ceph-cluster` → `rook-ceph`) live in a separate app so they can depend on it.
 
-Optional per-app files, all of which must be listed in `kustomization.yaml`'s `resources:`:
+## The Helm app pattern
 
-- `*.secrets.yaml` — a real Kubernetes Secret manifest, SOPS-encrypted (only `data`/`stringData`). Distinct from `helm_secrets.yaml`, which is helm values.
-- `<app>-httproute.yaml` — Gateway API route for charts with no built-in HTTPRoute support
-- `<app>-auth-policy.yaml` — Envoy Gateway `SecurityPolicy` (basic auth)
-- `README.md` — app-specific notes; read it before touching that app
+`apps/templates/helm/` is the boilerplate that `deploy_new_app.sh` copies; `apps/templates/kustomize/` is for plain-manifest apps and is copied by hand. A Helm app directory holds `namespace.yaml`, exactly one of `helmrepo.yaml`/`ocirepo.yaml` (the script deletes the unused one and uncomments the right line in `kustomization.yaml`), `release.yaml`, `values.yaml`, `helm_secrets.yaml`, `kustomization.yaml`, and `kustomizeconfig.yaml`.
 
-Not every app dir is a Helm app: the `*-custom-resources` dirs (`eg-`, `cert-manager-`, `metallb-`) and `cnpg-cluster-nextcloud` are plain kustomize dirs with no `values.yaml` or `release.yaml`, scaffolded from `apps/templates/kustomize/`.
+The indirection is the part worth understanding. Helm values are *not* inlined in `HelmRelease.spec.values`. Instead `kustomization.yaml` runs `values.yaml` through `configMapGenerator` and `helm_secrets.yaml` through `secretGenerator`, both mapped to the key `values.yaml=`, and `release.yaml` pulls them in via `spec.valuesFrom`. Because the generators append a content hash to the resource names, `kustomizeconfig.yaml` supplies a `nameReference` config that teaches kustomize to rewrite `spec/valuesFrom/name` on `HelmRelease` objects — without it the HelmRelease points at names that don't exist. Keep all four names in sync when renaming an app: the generator names (`<app>-values`, `<app>-secrets`), `valuesFrom`, and the `namespace:` field.
 
-Registration: adding an app creates `flux/flux-system/<name>.yaml` (a Kustomization pointing to the app dir), referenced from `flux/flux-system/kustomization.yaml`.
+This split is deliberate — it keeps secrets encryptable and lets you prototype the same files with plain Helm:
 
-## Enabling and disabling apps
+```shell
+helm install <app> <repo>/<chart> --namespace <app> --version <ver> --values values.yaml --values <(sops -d helm_secrets.yaml)
+```
 
-`flux/flux-system/kustomization.yaml` is the single source of truth for what is actually deployed. Apps are toggled by **commenting/uncommenting** their line in `resources:`, usually with a trailing comment saying why. An app directory existing under `apps/` does **not** mean it is running — well over a third of them are currently commented out. Always check this file before assuming something is live or debugging why a change "did nothing".
-
-Currently disabled but still described as active in older notes: `external-dns` and `ingress-nginx`. See the Ingress section.
+Convention for `values.yaml`: strip everything you are not overriding, so the file contains no chart defaults. `apps/templates/helm/values.yaml` ships `dyff`/`vim` one-liners for diffing your file against the chart's defaults.
 
 ## Secrets
 
-- SOPS age encryption. Key file: `~/.config/sops/age/keys.txt` (itself age-encrypted with a password; `variables.sh` decrypts it into `SOPS_AGE_KEY`).
-- `.sops.yaml` has two rules: `*secrets.yaml` files encrypt only `data`/`stringData` (so Kubernetes can still read `kind`/`apiVersion`); `*helm_secrets.yaml` files encrypt everything.
-- `bin/*` and `*.decrypted` are gitignored. Never commit decrypted secrets.
+`.sops.yaml` picks the encryption rule by *filename*, so names are load-bearing:
 
-## Adding a new app
+- `*secrets.yaml` — a real Kubernetes Secret; only `data`/`stringData` are encrypted, so `apiVersion`/`kind` stay readable to the API server.
+- `*helm_secrets.yaml` — Helm values that happen to be sensitive; the whole file is encrypted.
 
-1. Run `./deploy_new_app.sh <app_name> <repo_name> <repo_url> <chart_name> <chart_version>`
-1. Edit `apps/<app_name>/values.yaml` — remove all defaults, keep only overrides; keep the generated `dyff`/`vim` header comments
-1. If secrets needed: `sops apps/<app_name>/helm_secrets.yaml.decrypted`, move secrets from values.yaml into it
-1. If it needs a hostname: add an HTTPRoute **and** a matching HTTPS listener in `apps/eg-custom-resources/gateway.yaml`
-1. Uncomment the app in `flux/flux-system/kustomization.yaml` (the script adds the line; it is not enabled until it's uncommented)
-1. Commit and push; Flux will reconcile automatically
+Never open an encrypted file in an editor — use `sops <file>`, which decrypts, opens, and re-encrypts. Plaintext staging files use the `.decrypted` suffix, are gitignored, and are swept up by `encrypt_secrets.sh` (via `sops --filename-override`, so the ciphertext lands under the real filename and gets the right rule). Files under `apps/templates/` are skipped. `deploy.sh` runs the same sweep and `git rm`s the plaintext.
 
-## values.yaml conventions
+## Conditional marker blocks
 
-- Every `values.yaml` starts with two helper comments naming the exact chart and version, e.g.
-  ```
-  # dyff between <(yq . <(helm show values oci://.../app --version 0.9.0)) <(yq eval '. * load("values.yaml")' <(helm show values oci://.../app --version 0.9.0))
-  # vim -O <(helm show values oci://.../app --version 0.9.0) values.yaml
-  ```
-  Keep these in sync when bumping a chart version — they are how anyone re-derives which values are overrides vs. defaults.
-- Prefer digest-pinned images with the human-readable version as a trailing comment:
-  `repository: ghcr.io/kozea/radicale@sha256` + `tag: "<digest>" # 3.7.2`
-- **Exception — lines with `# {"$imagepolicy": ...}`:** those tags are rewritten and pushed to `main` by Flux's ImageUpdateAutomation (`update.path: apps`, `strategy: Setters`). Only the in-house apps (`timetracker`, `youcandoithealth`, `chorechart`) use this. Editing those tag values by hand will be overwritten; change the ImagePolicy instead.
+Optional config ships commented out between `>>> <marker>` / `<<< <marker>` comment delimiters (with a leading hash on the real markers). `uncomment_blocks()` in `deploy.sh` strips the leading `# ` from the lines between them, leaving the markers in place so it stays idempotent. Current markers: `eks` (enabled when `k8s_platform=eks` — IRSA service-account annotations, AWS NLB annotations) and `slack` (enabled when `slack_alerts=true` — Alertmanager → Slack, see `apps/kube-prometheus-stack/README.md`).
 
-## In-house chart
+Gotcha, called out in `deploy.sh` itself: never write the literal opening marker (hash, space, three `>`) anywhere except a real marker. `uncomment_blocks` greps the whole repo for it and rewrites every file that matches — including prose. When writing about markers in docs, drop the leading hash, as above.
 
-Seven apps (`timetracker`, `chorechart`, `copyparty`, `oxicloud`, `radicale`, `hatsmith`, `youcandoithealth`) share the generic chart `oci://registry.gitlab.com/devopscoop/charts/app`, via an OCIRepository named `devopscoop-app` (naming scheme `${org_name}-${chart_name}`). Its `workloadType` value switches between Deployment and StatefulSet. When changing behavior for one of these apps, check whether the knob exists in that chart before adding raw manifests.
+## Placeholders that deploy.sh rewrites
 
-## Ingress / Gateway API
+`deploy.sh` sed-replaces `project1-dev` → `$cluster_name` and `us-east-2` → `$region` across every file in the repo except itself, then commits and pushes. Treat both strings as reserved: don't introduce unrelated uses, and don't "fix" them to something else in template files. The script also commits and pushes on its own several times, with `git commit -n` to bypass local hooks.
 
-- **Envoy Gateway is the only enabled ingress path.** `apps/eg/` + `apps/eg-custom-resources/`. `ingress-nginx` is commented out in `flux/flux-system/kustomization.yaml`; leftover nginx `Ingress` annotations in app values are inert.
-- There is a single `Gateway` named `eg` in `envoy-gateway-system` with **one explicit HTTPS listener per hostname** (`longhorn.6j0.org`, `immich.6j0.org`, `grafana.6j0.org`, …). There is **no** `*.6j0.org` wildcard listener — the only wildcards are `*.s3.garage.6j0.org` and `*.web.garage.6j0.org`. Adding a new subdomain therefore requires editing `apps/eg-custom-resources/gateway.yaml`, not just adding an HTTPRoute.
-- Listener convention: `name` is the hostname with dots as dashes (`hatsmith-6j0-org`), TLS secret is `<name>-tls`, `allowedRoutes.namespaces.from: All`. HTTPRoutes attach with `parentRefs: [{name: eg, namespace: envoy-gateway-system}]` and no `sectionName` — Envoy matches on `hostnames`.
-- TLS certs come from cert-manager via the `cert-manager.io/cluster-issuer: letsencrypt` annotation on the Gateway, using the ACME **HTTP-01** solver bound to Gateway API (`gatewayHTTPRoute: {}`) in `apps/cert-manager-custom-resources/clusterissuer.yaml`. Adding a listener with a fresh `certificateRefs` secret name is enough to get a cert; the DNS-01 (Cloudflare) solver is commented out.
-- **DNS is currently manual.** `external-dns` is disabled, so a new HTTPRoute will *not* create the Porkbun record. When re-enabled it runs with `--source=gateway-httproute --domain-filter=6j0.org` and reads `PORKBUN_API_KEY` / `PORKBUN_SECRET_API_KEY` from a secret in the `external-dns` namespace.
-- Charts without HTTPRoute support (longhorn, grafana, garage, immich, seafile, peertube, nextcloud-aio) get a standalone `<app>-httproute.yaml` in their app dir.
-- **Basic auth has been migrated** off ingress-nginx annotations to Envoy Gateway `SecurityPolicy` (`longhorn`, `timetracker`, `chorechart`): a policy with `targetRefs` → the HTTPRoute and `basicAuth.users.name: basic-auth`, where `basic-auth` is a htpasswd Secret from the app's `auth.secrets.yaml`. Copy that pattern for new protected routes.
+## Validation
 
-## Networking notes
+`pre-commit` is the whole check suite (yamllint, markdownlint, detect-secrets, detect-private-key, symlink checks, plus a local hook).
 
-`ipv6-problems.txt` is a dated (2026-06-06) layer-by-layer diagnosis of why IPv6 dual-stack doesn't work end to end. Short version: the cluster's service/pod CIDRs are IPv4-only and can't be changed on a running cluster, so the MetalLB IPv6 pool and the `ipFamily: DualStack` EnvoyProxy config have no IPv6 backends. Read it before spending time on IPv6.
+```shell
+pre-commit install                         # once
+pre-commit run --all-files                 # everything
+pre-commit run validate-flux --all-files   # just the Flux conventions hook
+```
 
-## Common pitfalls
+`.githooks/validate-flux.py` enforces two rules:
 
-- **Volume permissions**: pods running as non-root need `podSecurityContext.fsGroup` set to the container's gid so PVCs are writable. Example: radicale uses `fsGroup: 1000`.
-- **OCI vs Helm repo**: `deploy_new_app.sh` auto-configures based on whether `repo_url` starts with `oci:`. If switching later, swap `helmrepo.yaml` ↔ `ocirepo.yaml` references in `kustomization.yaml` and update `release.yaml` `.spec.chartRef` or `.spec.chart`.
-- **Image automation**: `deploy_new_app.sh` adds an ImageRepository + ImagePolicy for `ghcr.io/devopscoop/<app_name>` to `flux/flux-system/imagerepositories.yaml` and `imagepolicies.yaml`. For third-party charts this is wrong — fix the image path or delete both blocks.
-- **`deploy.sh` rewrites the string `project1-dev`** to `${cluster_name}` across every file in the repo (except itself) and commits the result. Don't introduce that literal.
+- Every `Namespace` resource needs the `kustomize.toolkit.fluxcd.io/prune: disabled` annotation, so Flux won't delete namespaces (and PVCs with them). Rationale and the counter-argument are in `docs/prune.argdown`.
+- Every `dependsOn` entry must name a Flux Kustomization that exists in `flux/flux-system/`, with no dependency cycles. This check scans that whole directory regardless of which files are staged, so it catches a dangling reference even when you only touched `apps/`.
 
-## Working in this repo
+## Other scripts
 
-- Always run `git pull` before making any edits or creating files — Flux's image automation pushes commits to `main` on its own.
-- CI: `.github/workflows/claude.yml` (@claude mentions) and `claude-code-review.yml` (auto review on PRs). Both pin `claude-opus-5` and action SHAs; the review workflow's `--allowed-tools` list is load-bearing — see the comments in the file before editing.
+- `./deploy_new_app.sh` with no arguments prints its usage; it scaffolds a Helm app from the template, pulls the chart's default values into `values.yaml`, and optionally registers it for deploy (`--deploy`) and adds ImageRepository/ImagePolicy entries (`--image-automation`).
+- `./update_flux-instance.sh [FILE]` bumps `flux/flux-system/flux-instance.yaml` to the latest Flux release and re-pins each controller image to its multi-arch digest. Set `GITHUB_TOKEN` to avoid anonymous API rate limits.
+- `./deploy.sh` is the one-time bootstrap; it requires `variables.sh` and pushes to the remote. Don't run it against a repo you aren't bootstrapping.
+
+## Image automation and promotion
+
+In the continuously-deployed (dev) repo, image-automation-controller commits tag updates to `# {"$imagepolicy": ...}` setter markers in `apps/*/values.yaml`. Prod-like repos sync from dev via PR and must not run the automation controllers — leave the marker comments and the `imagepolicies.yaml`/`imagerepositories.yaml`/`imageupdateautomation.yaml` files in place so syncs stay conflict-free, and just don't reference them. Full procedure in README.md → "Promoting changes to other environments".
+
+## Package manifests
+
+This repo ships a `Brewfile` (macOS: `brew bundle`) and a `pkglist.txt` (Arch Linux) that install every CLI tool the repo uses. Keep them in sync with the code:
+
+- When you add a tool, script, or a new external command inside an existing script, add the package to BOTH files, with a comment noting what uses it.
+- When a tool stops being used, remove it from both files.
+- Verify package names before adding them: `brew info <formula>` for Homebrew, and the official repos/AUR for Arch. Names differ between ecosystems — this repo already depends on two such cases: the Go (mikefarah) `yq` is Arch's `go-yq` (Arch's `yq` is the incompatible Python implementation), and the Flux Operator CLI comes from the `controlplaneio-fluxcd/tap` Homebrew tap and the AUR `flux-operator` package. If a package is AUR-only, note that in pkglist.txt's header instructions.
+- Update the "Install required packages" section in README.md if the tool list changes.
+
+Note that the scripts need the Flux Operator CLI (`flux-operator`), not the standard `flux` CLI — the plain `flux` command appears only in commented-out lines.

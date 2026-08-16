@@ -1,0 +1,38 @@
+# dyff between <(yq . <(helm show values crowdstrike/falcon-platform --version 1.4.0)) <(yq eval '. * load("values.yaml")' <(helm show values crowdstrike/falcon-platform --version 1.4.0))
+# vim -O <(helm show values crowdstrike/falcon-platform --version 1.4.0) values.yaml
+
+# Create the component namespaces (falcon-system, falcon-kac,
+# falcon-image-analyzer) via pre-install hook. Only applies on install; if you
+# enable another component later, create its namespace manually before
+# upgrading.
+createComponentNamespaces: true
+
+global:
+  # Falcon Customer ID (CID) - required, not a secret. Falcon console → Host
+  # setup and management → Deploy → Sensor downloads.
+  falcon:
+    cid: CHANGEME-CID  # format: ^[0-9a-fA-F]{32}-[0-9a-fA-F]{2}$
+
+falcon-sensor:
+  # The subcharts ship placeholder image names (falcon-node-sensor,
+  # falcon-kac) that resolve to docker.io and fail to pull — the CrowdStrike
+  # registry path and a pinned tag are required. Auth comes from
+  # global.containerRegistry.configJSON in helm_secrets.yaml. List tags with:
+  # falcon-container-sensor-pull.sh --list-tags -t falcon-sensor (or -t falcon-kac)
+  node:
+    image:
+      repository: registry.crowdstrike.com/falcon-sensor/release/falcon-sensor
+      tag: "7.39.0-19204-1"
+
+falcon-kac:
+  image:
+    repository: registry.crowdstrike.com/falcon-kac/release/falcon-kac
+    tag: "7.39.0-3702"
+
+falcon-image-analyzer:
+  # Disabled: no license for Image Assessment currently. When licensed, set
+  # enabled: true, choose exactly one mode (deployment.enabled or
+  # daemonset.enabled - the values schema requires it), uncomment the API
+  # credentials in helm_secrets.yaml, and create the falcon-image-analyzer
+  # namespace by hand (createComponentNamespaces only applies on install).
+  enabled: false
