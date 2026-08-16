@@ -25,11 +25,6 @@ statefulSet:
           requests:
             storage: 10Gi
 
-# Names everything `radicle-node` rather than `radicle`, the release name the
-# chart falls back to. tcproute.yaml's backendRef points at the Service by this
-# name.
-fullnameOverride: radicle-node
-
 image:
   # Radicle publishes no official container image -- upstream ships .deb
   # packages and systemd units only. This community image unpacks the signed

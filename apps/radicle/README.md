@@ -18,7 +18,7 @@ Run `rad auth` in a throwaway pod built from the same image, so the key comes ou
 kubectl run radicle-keygen --rm --attach --quiet --restart=Never \
   --image=docker.io/dirk1980/radicle-seed-node@sha256:78ccee526ad4b4f4d7c79c2323b032a7209858a48e1dc9c077272ff1660050e2 \
   --env=RAD_HOME=/tmp/rad --env=RAD_PASSPHRASE= \
-  --command -- sh -c 'rad auth --alias project1-dev >/dev/null 2>&1; cat /tmp/rad/keys/radicle /tmp/rad/keys/radicle.pub'
+  --command -- sh -c 'rad auth --alias radicle.project1-dev.devops.coop >/dev/null 2>&1; cat /tmp/rad/keys/radicle /tmp/rad/keys/radicle.pub'
 ```
 
 That prints two things back to back: the OpenSSH private key block, then the one-line `ssh-ed25519 …` public key. Paste each into the matching field in `node-key.secrets.yaml.decrypted`, then encrypt it:
@@ -44,7 +44,7 @@ Two things have to be true before that path works.
 - `config.json` → `node.externalAddresses` — what the node advertises over gossip.
 - `tcproute.yaml` → the `external-dns.alpha.kubernetes.io/hostname` annotation — what gets a record pointing at the Gateway's load balancer.
 
-Both ship as `radicle.project1-dev.devops.coop`, and deploy.sh rewrites `project1-dev` to your cluster name. If they disagree, peers get an address that does not resolve to this node and inbound replication silently never happens.
+Both are `radicle.project1-dev.devops.coop` on this cluster. If they disagree, peers get an address that does not resolve to this node and inbound replication silently never happens.
 
 A TCPRoute has no `hostnames` field — a TCP stream carries no hostname to route on — so the record comes from that annotation and the listener is dedicated to this one app. That is also why the listener is named `radicle` rather than something generic: a second TCP service needs its own port and its own listener.
 
@@ -67,9 +67,9 @@ The alternative is a fully-replicating seed: `{"default": "allow", "scope": "all
 ## Checking on it
 
 ```shell
-kubectl -n radicle exec -it radicle-node-0 -- rad node status
-kubectl -n radicle exec -it radicle-node-0 -- rad self
-kubectl -n radicle exec -it radicle-node-0 -- rad node routing
+kubectl -n radicle exec -it radicle-0 -- rad node status
+kubectl -n radicle exec -it radicle-0 -- rad self
+kubectl -n radicle exec -it radicle-0 -- rad node routing
 ```
 
 Peers connect from the outside, so confirm the route was accepted and that the Gateway it hangs off has an address:
@@ -86,7 +86,7 @@ A route that is not `Accepted` usually means the `radicle` listener is missing f
 Edit `seeded-repos.txt`, let Flux sync, then restart:
 
 ```shell
-kubectl -n radicle rollout restart statefulset radicle-node
+kubectl -n radicle rollout restart statefulset radicle
 ```
 
 Which repos a node carries is a per-repo policy in `node/policies.db` on the PVC — `config.json` can only set the default. So the `seed-policies` initContainer reconciles that database against `seeded-repos.txt` on every start: it seeds what is listed and unseeds what is not. That keeps the list reviewable in git and rebuildable after a lost volume, which a database on a volume is not.
@@ -96,7 +96,7 @@ Removing a line stops replication; it does not delete what is already on the PVC
 Changing policies by hand with `rad seed` / `rad unseed` in the pod works, but the next restart reverts it to whatever `seeded-repos.txt` says. To inspect the live state:
 
 ```shell
-kubectl -n radicle exec -it radicle-node-0 -- rad seed
+kubectl -n radicle exec -it radicle-0 -- rad seed
 ```
 
 ## Changing config.json
