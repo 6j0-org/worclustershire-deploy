@@ -11,6 +11,11 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
+  annotations:
+    # See the note in gateway-public.yaml. HTTP-01 is the only solver on the
+    # letsencrypt ClusterIssuer, so this Gateway's LB address must be
+    # reachable from the internet on :80 for these certs to issue and renew.
+    cert-manager.io/cluster-issuer: letsencrypt
   name: eg-private
 spec:
   gatewayClassName: eg
@@ -18,6 +23,23 @@ spec:
     - name: http
       protocol: HTTP
       port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+
+    # HTTPS listener for grafana.6j0.org. The ops UIs routed to this Gateway
+    # (grafana, prometheus, alertmanager -- see apps/kube-prometheus-stack)
+    # are HTTP-only apart from this one; add a listener per hostname here if
+    # you want TLS on the others too.
+    - name: grafana-6j0-org
+      hostname: "grafana.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: grafana-6j0-org-tls
       allowedRoutes:
         namespaces:
           from: All

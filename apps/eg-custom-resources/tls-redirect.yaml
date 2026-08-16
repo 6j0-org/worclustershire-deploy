@@ -9,7 +9,7 @@ metadata:
   namespace: envoy-gateway-system
 spec:
   parentRefs:
-    - name: eg
+    - name: eg-public
       sectionName: http
   rules:
     - filters:

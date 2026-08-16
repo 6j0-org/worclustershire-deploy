@@ -7,7 +7,7 @@ metadata:
   name: garage-s3-api
 spec:
   parentRefs:
-    - name: eg
+    - name: eg-public
       namespace: envoy-gateway-system
   hostnames:
     - s3.garage.6j0.org
@@ -28,7 +28,7 @@ metadata:
   name: garage-s3-web
 spec:
   parentRefs:
-    - name: eg
+    - name: eg-public
       namespace: envoy-gateway-system
   hostnames:
     - "*.web.garage.6j0.org"

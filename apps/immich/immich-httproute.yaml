@@ -4,7 +4,7 @@ metadata:
   name: immich
 spec:
   parentRefs:
-    - name: eg
+    - name: eg-public
       namespace: envoy-gateway-system
   hostnames:
     - immich.6j0.org

@@ -4,7 +4,7 @@ metadata:
   name: peertube
 spec:
   parentRefs:
-    - name: eg
+    - name: eg-public
       namespace: envoy-gateway-system
   hostnames:
     - peertube.6j0.org

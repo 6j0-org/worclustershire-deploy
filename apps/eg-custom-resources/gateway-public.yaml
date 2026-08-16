@@ -17,6 +17,12 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
+  annotations:
+    # cert-manager's gateway-shim watches this annotation and creates one
+    # Certificate per HTTPS listener below, named after its certificateRefs
+    # Secret. Without it no Certificate exists and nothing renews the
+    # *-tls Secrets -- they just expire.
+    cert-manager.io/cluster-issuer: letsencrypt
   name: eg-public
 spec:
   gatewayClassName: eg
@@ -24,9 +30,16 @@ spec:
     - name: http
       protocol: HTTP
       port: 80
+      # `Same` restricts this listener to routes in envoy-gateway-system:
+      # tls-redirect.yaml, the healthz route, and the ACME HTTP-01 solver
+      # routes cert-manager creates here. App routes live in their own
+      # namespaces, so they cannot attach and their cleartext traffic falls
+      # through to the catch-all redirect instead of being served on :80.
+      # Widening this to `All` silently disables the HTTP->HTTPS redirect for
+      # every app (a hostname-specific route outranks the catch-all).
       allowedRoutes:
         namespaces:
-          from: All
+          from: Same
 
     # A TCP listener is bound to one app in a way an HTTP listener is not: a TCP
     # stream carries no hostname, so TCPRoute has no `hostnames` field and
@@ -77,19 +90,8 @@ spec:
         namespaces:
           from: All
 
-    # HTTPS listener for grafana.6j0.org
-    - name: grafana-6j0-org
-      hostname: "grafana.6j0.org"
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: grafana-6j0-org-tls
-      allowedRoutes:
-        namespaces:
-          from: All
+    # grafana.6j0.org is an ops UI, so its listener lives on the private
+    # Gateway (gateway-private.yaml) alongside its HTTPRoute, not here.
 
     # HTTPS listener for radicale.6j0.org (individual cert via HTTP01)
     - name: radicale-6j0-org
