@@ -21,5 +21,7 @@
 #
 # Example:
 #   rad:z3gqcJUoA1n9HaHKufZs5FCSGazv5   # radicle heartwood
+rad:z4KE6B3D7hDborYdrRoehccephmnh # fluxcd-template
+
 
 # --- add yours below ---
