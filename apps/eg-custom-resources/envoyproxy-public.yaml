@@ -19,8 +19,8 @@ kind: EnvoyProxy
 metadata:
   name: eg-public
 spec:
-  # Dual-stack for the same reason as eg-private -- see envoyproxy-private.yaml.
-  ipFamily: DualStack
+  # IPv4 for the same reason as eg-private -- see envoyproxy-private.yaml.
+  ipFamily: IPv4
   provider:
     type: Kubernetes
     kubernetes:
@@ -48,9 +48,20 @@ spec:
                   app.kubernetes.io/name: envoy
       envoyPDB:
         maxUnavailable: 1
+      envoyService:
+        annotations:
+          # Pin the LB address. MetalLB otherwise hands out the next free
+          # address from first-pool, which is NOT the address the router
+          # port-forwards to -- so a Service recreate silently moves the
+          # ingress and everything stops answering. 192.168.8.11 is the IPv4
+          # the pre-split `eg` Gateway held (.12 is nextcloud-aio-apache).
+          #
+          # Deliberately IPv4 only. The pool's IPv6 half is a globally
+          # routable ISP-delegated range; pinning an address out of it would
+          # break assignment for the WHOLE Service -- IPv4 included, the
+          # annotation is all-or-nothing -- the day that delegation rotates.
+          metallb.io/loadBalancerIPs: 192.168.8.11
 # >>> eks: deploy.sh uncomments this block when k8s_platform=eks
-#       envoyService:
-#         annotations:
 #           service.beta.kubernetes.io/aws-load-balancer-ip-address-type: dualstack
 #           service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
 #           service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip

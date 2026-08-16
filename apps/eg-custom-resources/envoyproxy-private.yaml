@@ -52,10 +52,18 @@ kind: EnvoyProxy
 metadata:
   name: eg-private
 spec:
-  # This cluster is dual-stack at the Service layer and MetalLB's pool carries
-  # both families, so the Envoy LB Service takes an IPv4 and an IPv6 address.
-  # IPv6-only here strands every client that reaches the cluster over IPv4.
-  ipFamily: DualStack
+  # Must match the pod network, which is single-stack IPv4 (nodes carry only
+  # a 10.244.x.0/24 podCIDR). An IPv6 Service family gets an IPv6-typed
+  # EndpointSlice that IPv4-only pods can never populate, so it serves
+  # nothing -- that empty slice is exactly what took the ingress down when
+  # the upstream split hardcoded ipFamily: IPv6 here.
+  #
+  # IPv4 primary also keeps the door open: Kubernetes forbids changing
+  # ipFamilies[0] on a live Service but allows APPENDING a secondary family,
+  # so dual-stacking later is an in-place edit rather than another Service
+  # delete/recreate. Getting stuck the other way round is what forced the
+  # recreate this time.
+  ipFamily: IPv4
   provider:
     type: Kubernetes
     kubernetes:
@@ -83,9 +91,11 @@ spec:
                   app.kubernetes.io/name: envoy
       envoyPDB:
         maxUnavailable: 1
+      envoyService:
+        annotations:
+          # Pinned for the same reason as eg-public -- see envoyproxy-public.yaml.
+          metallb.io/loadBalancerIPs: 192.168.8.10
 # >>> eks: deploy.sh uncomments this block when k8s_platform=eks
-#       envoyService:
-#         annotations:
 #           service.beta.kubernetes.io/aws-load-balancer-ip-address-type: dualstack
 #           service.beta.kubernetes.io/aws-load-balancer-scheme: internal
 #           service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
