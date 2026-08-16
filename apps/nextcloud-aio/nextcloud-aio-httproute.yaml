@@ -4,7 +4,7 @@ metadata:
   name: nextcloud-aio
 spec:
   parentRefs:
-    - name: eg
+    - name: eg-public
       namespace: envoy-gateway-system
       # sectionName: nextcloud-6j0-org
   hostnames:

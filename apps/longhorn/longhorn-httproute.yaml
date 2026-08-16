@@ -4,7 +4,7 @@ metadata:
   name: longhorn
 spec:
   parentRefs:
-    - name: eg
+    - name: eg-public
       namespace: envoy-gateway-system
   hostnames:
     - longhorn.6j0.org

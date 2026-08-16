@@ -19,7 +19,8 @@ kind: EnvoyProxy
 metadata:
   name: eg-public
 spec:
-  ipFamily: IPv6
+  # Dual-stack for the same reason as eg-private -- see envoyproxy-private.yaml.
+  ipFamily: DualStack
   provider:
     type: Kubernetes
     kubernetes:

@@ -36,7 +36,7 @@ service:
 httpRoute:
   enabled: true
   parentRefs:
-  - name: eg
+  - name: eg-public
     namespace: envoy-gateway-system
   hostnames:
   - radicale.6j0.org
