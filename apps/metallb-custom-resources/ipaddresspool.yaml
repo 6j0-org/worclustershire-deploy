@@ -1,9 +1,68 @@
 # https://metallb.io/configuration/#defining-the-ips-to-assign-to-the-load-balancer-services
+#
+# .10 and .11 are carved out of the IPv4 range below and pinned to the two
+# Envoy Gateway LB Services by the dedicated pools further down. Keep them out
+# of first-pool so the two allocations can't collide.
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
   name: first-pool
 spec:
   addresses:
-  - 192.168.8.10-192.168.8.19
+  - 192.168.8.12-192.168.8.19
   - 2603:8001:5800:8cf::10-2603:8001:5800:8cf::19
+---
+# Pinned address for the eg-public Gateway's Envoy Service.
+#
+# The router port-forwards :80/:443 to 192.168.8.11, so this address is load
+# bearing: if the Service is ever recreated (an ipFamily change forces that --
+# ipFamilies[0] is immutable) MetalLB would otherwise hand out the next free
+# address from first-pool and the ingress would go quietly dark behind a
+# port-forward pointing at nothing.
+#
+# Pinning here rather than with a metallb.io/loadBalancerIPs annotation on the
+# Service keeps apps/eg-custom-resources/envoyproxy-public.yaml byte-identical
+# to the upstream template -- its envoyService key is spoken for by the eks
+# marker block.
+#
+# serviceSelectors matches the label Envoy Gateway puts on every Service it
+# creates for a Gateway. priority beats first-pool, which has none: MetalLB
+# prefers the lowest priority value and falls back to unprioritised pools.
+#
+# The `gateway-` name prefix is load bearing, for one apply only. MetalLB's
+# webhook rejects a pool overlapping an already-stored one, and kustomize emits
+# same-kind resources sorted by name -- so these have to sort AFTER first-pool
+# for the migration that narrows it to .12-.19 to land in the right order.
+# Rename them to anything sorting before "first-pool" and that one reconcile
+# fails on "overlaps with already defined CIDR".
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: gateway-eg-public
+spec:
+  addresses:
+  - 192.168.8.11/32
+  serviceAllocation:
+    priority: 10
+    namespaces:
+    - envoy-gateway-system
+    serviceSelectors:
+    - matchLabels:
+        gateway.envoyproxy.io/owning-gateway-name: eg-public
+---
+# Pinned address for the eg-private Gateway's Envoy Service -- same rationale
+# as eg-public above.
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: gateway-eg-private
+spec:
+  addresses:
+  - 192.168.8.10/32
+  serviceAllocation:
+    priority: 10
+    namespaces:
+    - envoy-gateway-system
+    serviceSelectors:
+    - matchLabels:
+        gateway.envoyproxy.io/owning-gateway-name: eg-private
