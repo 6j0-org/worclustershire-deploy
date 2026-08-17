@@ -42,7 +42,7 @@ resources:
   # - seafile.yaml
   # - seafile-mariadb.yaml
 
-  # - radicle.yaml
+  - radicle.yaml
 
 patchesStrategicMerge:
   - flux-resources-patch.yaml
