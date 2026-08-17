@@ -208,20 +208,6 @@ spec:
         namespaces:
           from: All
 
-    # HTTPS listener for chorechart.6j0.org
-    - name: chorechart-6j0-org
-      hostname: "chorechart.6j0.org"
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: chorechart-6j0-org-tls
-      allowedRoutes:
-        namespaces:
-          from: All
-
     # HTTPS listener for peertube.6j0.org
     - name: peertube-6j0-org
       hostname: "peertube.6j0.org"
