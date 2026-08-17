@@ -64,6 +64,21 @@ Get an ID with `rad .` inside a working copy, or `rad inspect --rid`.
 
 The alternative is a fully-replicating seed: `{"default": "allow", "scope": "all"}` in `config.json`, which carries every repo announced to the node and grows with the network rather than with your list.
 
+## Bootstrapping onto the network
+
+`config.json` here is a complete file mounted over `$RAD_HOME/config.json`, not a patch on top of what `rad auth` would have written — so anything it omits falls back to the binary's defaults, and `preferredSeeds` does **not** default to the public seeds. It has to be spelled out, and it is:
+
+```json
+"preferredSeeds": [
+  "z6MkrLMMsiPWUcNPHcRajuMi9mDfYckSoJyPwwnknocNYPm7@iris.radicle.network:8776",
+  "z6Mkmqogy2qEM2ummccUthFEaaHvyYmYBYh3dbe9W4ebScxo@rosa.radicle.network:8776"
+]
+```
+
+Without it the node has no way onto the network. `node.peers` defaults to `dynamic`, which picks peers out of an address book that is itself filled by gossip from peers already connected — so on a fresh volume the node binds its port, dials nobody, and sits there with an empty `rad node routing` forever. `preferredSeeds` (dialed at startup) and `node.connect` (held open permanently) are the only two ways in; a node with both empty can only ever be found, never find.
+
+These are the Radicle core team's permissive seeds, renamed from `seed`/`ash.radicle.garden` in the [2026 move to radicle.network](https://radicle.dev/2026/04/23/domain-move). The Node ID in front of the `@` is checked during the handshake, so a stale pairing fails closed and shows up in the node's log rather than connecting to the wrong peer.
+
 ## Checking on it
 
 ```shell
