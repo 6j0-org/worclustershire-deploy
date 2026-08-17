@@ -43,3 +43,18 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+
+    # HTTPS listener for longhorn.6j0.org
+    - name: longhorn-6j0-org
+      hostname: "longhorn.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: longhorn-6j0-org-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+

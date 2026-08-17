@@ -62,20 +62,6 @@ spec:
         namespaces:
           from: All
 
-    # HTTPS listener for longhorn.6j0.org
-    - name: longhorn-6j0-org
-      hostname: "longhorn.6j0.org"
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: longhorn-6j0-org-tls
-      allowedRoutes:
-        namespaces:
-          from: All
-
     # HTTPS listener for immich.6j0.org
     - name: immich-6j0-org
       hostname: "immich.6j0.org"
@@ -89,9 +75,6 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
-
-    # grafana.6j0.org is an ops UI, so its listener lives on the private
-    # Gateway (gateway-private.yaml) alongside its HTTPRoute, not here.
 
     # HTTPS listener for radicale.6j0.org (individual cert via HTTP01)
     - name: radicale-6j0-org
