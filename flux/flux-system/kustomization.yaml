@@ -22,7 +22,6 @@ resources:
   - cnpg.yaml
   # - metrics-server.yaml # Broken, see TODO in metrics-server dir.
 
-  # - youcandoithealth.yaml
   # - descheduler.yaml
   - kube-prometheus-stack.yaml
   # TODO: Needs S3 object storage

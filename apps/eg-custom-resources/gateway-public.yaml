@@ -249,17 +249,3 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
-
-    # Non-6j0.org domain — needs its own cert.
-    - name: youcandoithealth-com
-      hostname: youcandoithealth.com
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: youcandoithealth-com-tls
-      allowedRoutes:
-        namespaces:
-          from: All
