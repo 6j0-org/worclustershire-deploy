@@ -35,9 +35,21 @@ Both files have to be in the Secret. `radicle-node` only reads the private key, 
 
 The node has no LoadBalancer of its own. Its Service is a ClusterIP, and peers reach it through the shared **eg-public** Gateway, which forwards TCP 8776 to it — a `TCPRoute` (`tcproute.yaml`) attached to a listener of the same name in `apps/eg-custom-resources/gateway-public.yaml`.
 
-Two things have to be true before that path works.
+Three things have to be true before that path works.
 
 **The Gateway has to actually be public.** `eg-public` ships attached to the *private* EnvoyProxy — the name says what it is for, not where it is. Until you attach the `eg-public` EnvoyProxy stub via `spec.infrastructure.parametersRef` (the snippet is in `envoyproxy-public.yaml`), this node is reachable only from inside the network, and a seed nobody can dial is not seeding anything.
+
+**Something outside the cluster has to route 8776 to the Gateway.** On a cloud cluster the EnvoyProxy's load balancer publishes every listener port, so attaching the public stub is the whole job. On bare metal it is not: MetalLB hands the Gateway a LAN address, and only the ports the site's router forwards to it reach the internet. That forwarding usually exists for 80 and 443 because the first app needed it, and 8776 is a port nobody has opened before — so the Radicle listener is the one that silently stays private.
+
+Nothing in this repo controls that hop, which makes it the failure the Kubernetes objects cannot warn you about: the listener is present, the TCPRoute reports `Accepted`, the Service publishes 8776, the Gateway is `PROGRAMMED=True`, and the node is still undialable. Confirm it from *off* the network rather than from a workstation on the same LAN — the LAN address answers either way:
+
+```shell
+# The address to forward TO:
+kubectl -n envoy-gateway-system get gateway eg-public
+
+# Run this from somewhere else, against the address forwarded FROM:
+timeout 5 bash -c 'exec 3<>/dev/tcp/<public-address>/8776' && echo open || echo blocked
+```
 
 **Two files have to agree on one hostname:**
 
@@ -95,6 +107,18 @@ kubectl -n envoy-gateway-system get gateway eg-public
 ```
 
 A route that is not `Accepted` usually means the `radicle` listener is missing from the Gateway, or `sectionName` does not match it.
+
+The link-direction column in `rad node status` is what tells you whether step 2 above really landed. Sessions marked `↗` are ones this node opened; `↘` are peers that dialed *it*. A node with healthy outbound sessions and no inbound ones is working as a client of the network but is not yet reachable as a seed — which is exactly what a missing port forward looks like, since outbound replication is unaffected by it.
+
+Inbound sessions only appear after a completed handshake, so a plain `nc` probe proves the port is open without ever showing up there. To prove the rest of the path — that Envoy is really carrying the stream to the pod rather than just accepting and dropping it — read the Gateway's access log while you probe:
+
+```shell
+kubectl -n envoy-gateway-system logs -l gateway.envoyproxy.io/owning-gateway-name=eg-public --since=3m | grep 8776
+```
+
+Look for `upstream_host` equal to the radicle pod's IP with a null `upstream_transport_failure_reason`. `bytes_received` staying 0 is expected for a probe that never speaks the protocol.
+
+Do not wait on an inbound session as the sign it worked, though. Peers dial you when they want a repo you carry, so your external address has to propagate through gossip first, and a node seeding a short list may go a long time without anyone having a reason to connect. Quiet is not the same as broken.
 
 ## Changing which repos are seeded
 
