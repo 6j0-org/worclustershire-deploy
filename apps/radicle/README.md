@@ -58,7 +58,7 @@ One consequence of proxying: `radicle-node` sees connections coming from the Env
 
 ### 3. List the repos to seed
 
-`config.json` sets `seedingPolicy.default` to `block`, so the node carries nothing it is not told to. Put the repos you want in `seeded-repos.txt`, one Radicle ID per line — that file is the whole list. The 10Gi PVC in values.yaml is sized for that, not for the network; revisit it as the list grows.
+`config.json` sets `seedingPolicy.default` to `block`, so the node carries nothing it is not told to. Put the repos you want in `seeded-repos.txt`, one Radicle ID per line — that file is the whole list. The 10Gi PVC in `radicle-home-pvc.yaml` is sized for that, not for the network; revisit it as the list grows.
 
 Get an ID with `rad .` inside a working copy, or `rad inspect --rid`.
 
@@ -67,9 +67,9 @@ The alternative is a fully-replicating seed: `{"default": "allow", "scope": "all
 ## Checking on it
 
 ```shell
-kubectl -n radicle exec -it radicle-0 -- rad node status
-kubectl -n radicle exec -it radicle-0 -- rad self
-kubectl -n radicle exec -it radicle-0 -- rad node routing
+kubectl -n radicle exec -it deploy/radicle -- rad node status
+kubectl -n radicle exec -it deploy/radicle -- rad self
+kubectl -n radicle exec -it deploy/radicle -- rad node routing
 ```
 
 Peers connect from the outside, so confirm the route was accepted and that the Gateway it hangs off has an address:
@@ -86,7 +86,7 @@ A route that is not `Accepted` usually means the `radicle` listener is missing f
 Edit `seeded-repos.txt`, let Flux sync, then restart:
 
 ```shell
-kubectl -n radicle rollout restart statefulset radicle
+kubectl -n radicle rollout restart deployment radicle
 ```
 
 Which repos a node carries is a per-repo policy in `node/policies.db` on the PVC — `config.json` can only set the default. So the `seed-policies` initContainer reconciles that database against `seeded-repos.txt` on every start: it seeds what is listed and unseeds what is not. That keeps the list reviewable in git and rebuildable after a lost volume, which a database on a volume is not.
@@ -96,7 +96,7 @@ Removing a line stops replication; it does not delete what is already on the PVC
 Changing policies by hand with `rad seed` / `rad unseed` in the pod works, but the next restart reverts it to whatever `seeded-repos.txt` says. To inspect the live state:
 
 ```shell
-kubectl -n radicle exec -it radicle-0 -- rad seed
+kubectl -n radicle exec -it deploy/radicle -- rad seed
 ```
 
 ## Changing config.json
