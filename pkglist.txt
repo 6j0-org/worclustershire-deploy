@@ -34,6 +34,10 @@ go-yq
 # helm — pulling charts, showing values, prototyping installs
 helm
 
+# openssh (ssh-keygen, ssh-keyscan) — generating the radicle mirror deploy key
+# and verifying forge host keys for apps/radicle/mirror-known-hosts
+openssh
+
 # pre-commit — git hook framework used by .pre-commit-config.yaml
 pre-commit
 

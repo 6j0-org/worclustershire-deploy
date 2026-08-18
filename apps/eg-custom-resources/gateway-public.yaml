@@ -218,3 +218,22 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+
+    # HTTPS listener for radicle.6j0.org -- git-over-HTTPS from the
+    # radicle-httpd sidecar in apps/radicle. Same hostname as the `radicle` TCP
+    # listener above: peers dial it on 8776 for the p2p protocol, git clients
+    # hit 443 for `git clone https://radicle.6j0.org/<repo>.git`. One name, two
+    # protocols, and the DNS record already exists because the TCPRoute's
+    # external-dns annotation created it.
+    - name: radicle-6j0-org
+      hostname: "radicle.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: radicle-6j0-org-tls
+      allowedRoutes:
+        namespaces:
+          from: All

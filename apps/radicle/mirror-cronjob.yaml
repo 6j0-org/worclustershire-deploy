@@ -1,0 +1,145 @@
+# Mirrors the Radicle repos listed in push_rad_code.sh out to GitHub, GitLab
+# and Codeberg once a day, so the code stays reachable to people who are not
+# on the Radicle network. Radicle stays the source of truth; these are one-way
+# pushes to read-only copies. See README.md -> "Mirroring repos out to other
+# forges".
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: radicle-mirror
+spec:
+  # Daily, off the hour: an on-the-hour schedule puts this in the same minute
+  # as every other cron on the cluster and every other mirror job hitting the
+  # public seed.
+  schedule: "17 3 * * *"
+  # The cluster's local time is not this job's business, and a node that moved
+  # timezone should not silently move the schedule with it.
+  timeZone: Etc/UTC
+  # Runs share one RWO volume and push to the same remotes, so a slow run has
+  # to delay the next one rather than race it.
+  concurrencyPolicy: Forbid
+  # If the controller was down over the scheduled minute, still run when it
+  # comes back -- within an hour. Later than that, wait for tomorrow.
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  # Keep failures around longer than successes: a failed run's log is the only
+  # record of why, and nobody is watching this at 03:17.
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      # A hung fetch would otherwise hold the volume and, under Forbid, block
+      # every following run indefinitely.
+      activeDeadlineSeconds: 3600
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10000
+            runAsGroup: 10000
+            # Makes the cache volume writable and the mounted key readable to
+            # the above.
+            fsGroup: 10000
+          containers:
+            - name: mirror
+              # Same image and digest as the node in values.yaml, which is a
+              # deliberate reuse rather than a coincidence: push_rad_code.sh is
+              # a bash script using arrays and a here-string, and it needs git
+              # and an ssh client. This image has bash, git and ssh; the
+              # obvious alternative, alpine/git, has no bash at all and the
+              # script would die on its shebang. Reusing it also means one
+              # digest to bump per Radicle release instead of two unrelated
+              # images to track.
+              #
+              # NOTE: this is the third place the digest appears. See
+              # README.md -> "Upgrading".
+              image: docker.io/dirk1980/radicle-seed-node@sha256:78ccee526ad4b4f4d7c79c2323b032a7209858a48e1dc9c077272ff1660050e2
+              # The image's CMD is radicle-node, so it has to be replaced. The
+              # script is mounted executable and carries its own bash shebang.
+              command:
+                - /etc/radicle-mirror/push_rad_code.sh
+              env:
+                # push_rad_code.sh puts its cache under $HOME and runs with
+                # `set -u`, so this is required, not cosmetic. Pointing it at
+                # the volume is what makes the mirror clones persist between
+                # runs, which is the difference between a daily incremental
+                # fetch and re-cloning every repo from scratch every night.
+                - name: HOME
+                  value: /cache
+                # StrictHostKeyChecking=yes against a known_hosts checked into
+                # git: an unattended job has no operator to eyeball a
+                # fingerprint, so first contact with an unknown host must fail
+                # rather than be trusted. BatchMode stops ssh prompting for a
+                # passphrase and hanging until activeDeadlineSeconds.
+                #
+                # The key is read straight from its mount. Kubernetes lands
+                # Secret files as root:fsGroup, and ssh only enforces its
+                # "permissions are too open" rule on keys owned by the calling
+                # user -- so 0440 to a uid-10000 process is read without
+                # complaint, and copying it somewhere stricter would buy
+                # nothing.
+                - name: GIT_SSH_COMMAND
+                  value: >-
+                    ssh -i /etc/radicle-mirror-key/id_ed25519
+                    -o IdentitiesOnly=yes
+                    -o UserKnownHostsFile=/etc/radicle-mirror/known_hosts
+                    -o StrictHostKeyChecking=yes
+                    -o BatchMode=yes
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                # Everything git writes is a mounted volume: the cache, and
+                # /tmp for git's scratch files.
+                readOnlyRootFilesystem: true
+              volumeMounts:
+                - name: cache
+                  mountPath: /cache
+                - name: config
+                  mountPath: /etc/radicle-mirror
+                  readOnly: true
+                # seeded-repos.txt, at the same path the node's seed-policies
+                # initContainer reads it from.
+                - name: repo-list
+                  mountPath: /etc/radicle
+                  readOnly: true
+                - name: ssh-key
+                  mountPath: /etc/radicle-mirror-key
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  # `git remote update` on a large mirror repacks, and that is
+                  # the memory-hungry part of this job.
+                  memory: 2Gi
+          volumes:
+            - name: cache
+              persistentVolumeClaim:
+                claimName: radicle-mirror-cache
+            - name: config
+              configMap:
+                name: radicle-mirror
+                # The script is exec'd directly, so it needs the execute bit;
+                # a ConfigMap volume ignores the mode the file has in git.
+                defaultMode: 365 # 0555
+            # The node's own ConfigMap, mounted read-only rather than copied:
+            # one seeded-repos.txt, two readers. It carries no name hash, so
+            # editing that file updates this ConfigMap in place and the next
+            # run picks the change up -- the node, which reads its copy once
+            # at startup, still needs a restart.
+            - name: repo-list
+              configMap:
+                name: radicle-config
+            - name: ssh-key
+              secret:
+                # It's a reference, not a secret -- detect-secrets flags the keyword.
+                secretName: radicle-mirror-ssh # pragma: allowlist secret
+                defaultMode: 288 # 0440 -- fsGroup owns it, so it needs group read
+            - name: tmp
+              emptyDir: {}

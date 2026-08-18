@@ -1,0 +1,18 @@
+# The chart's own Service templates exactly one port (values.yaml service.port,
+# which is the node's 8776), so the httpd sidecar needs its own. Same pod --
+# the selector is the chart's, copied from its _helpers.tpl selectorLabels --
+# just a second port on it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: radicle-httpd
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/instance: radicle
+  ports:
+    - name: httpd
+      port: 8080
+      targetPort: httpd
+      protocol: TCP

@@ -14,6 +14,29 @@
 # Get a repo's ID with `rad .` inside a working copy, or `rad inspect --rid`.
 # Blank lines and anything after a # are ignored.
 #
+# An entry may carry a second column: a short, readable name for the repo. It
+# does two things, and neither affects seeding.
+#
+#   rad:z4KE6B3D7hDborYdrRoehccephmnh myproject   <- seeded, named, mirrored
+#   rad:z3gqcJUoA1n9HaHKufZs5FCSGazv5             <- seeded only
+#
+# 1. It is the radicle-httpd alias, so the repo is clonable as
+#    https://radicle.6j0.org/myproject.git instead of by its full ID.
+# 2. It opts the repo into the daily mirror push, and is the name used on
+#    GitHub/GitLab/Codeberg -- so it must be a valid repo name, and the repo
+#    has to already exist there.
+#
+# Because of (2) it is opt-in rather than automatic: seeding a repo and
+# republishing it under your own forge account are separate decisions, and you
+# will seed repos you do not own. A repo with no name is still served over
+# HTTPS, just by its ID rather than a readable one.
+#
+# The seeding parser ignores the column (it keeps only rad: tokens), so adding
+# one changes nothing about what the node replicates. Both readers pick it up
+# at startup, so a change needs `kubectl -n radicle rollout restart deployment
+# radicle` to reach the alias list. See README.md -> "Cloning over HTTPS" and
+# "Mirroring repos out to other forges".
+#
 # The list is mounted from a ConfigMap that is read once at startup, so after
 # editing this, let Flux sync and then:
 #
@@ -21,7 +44,7 @@
 #
 # Example:
 #   rad:z3gqcJUoA1n9HaHKufZs5FCSGazv5   # radicle heartwood
-rad:z4KE6B3D7hDborYdrRoehccephmnh # fluxcd-template
+rad:z4KE6B3D7hDborYdrRoehccephmnh fluxcd-template
 
 
 # --- add yours below ---
