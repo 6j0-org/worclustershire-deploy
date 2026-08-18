@@ -22,4 +22,4 @@ spec:
   # grows, and remember it is a cache -- deleting it is safe.
   resources:
     requests:
-      storage: 5Gi
+      storage: 2Gi
