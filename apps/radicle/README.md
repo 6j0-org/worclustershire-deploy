@@ -130,6 +130,8 @@ kubectl -n radicle rollout restart deployment radicle
 
 Which repos a node carries is a per-repo policy in `node/policies.db` on the PVC — `config.json` can only set the default. So the `seed-policies` initContainer reconciles that database against `seeded-repos.txt` on every start: it seeds what is listed and unseeds what is not. That keeps the list reviewable in git and rebuildable after a lost volume, which a database on a volume is not.
 
+A line may also carry a second column, which opts that repo into the daily mirror push described under "Mirroring repos out to other forges" below; the seeding parser ignores it.
+
 Removing a line stops replication; it does not delete what is already on the PVC. Repos are seeded with scope `all`, so every remote is followed and contributors' patches and forks replicate too, not just the delegates' branches.
 
 Changing policies by hand with `rad seed` / `rad unseed` in the pod works, but the next restart reverts it to whatever `seeded-repos.txt` says. To inspect the live state:
@@ -142,9 +144,82 @@ kubectl -n radicle exec -it deploy/radicle -- rad seed
 
 Same as above: `config.json` shares the ConfigMap with `seeded-repos.txt` and is read once at startup, so an edit reconciles into the cluster without reaching the running node until you restart it.
 
+## Mirroring repos out to other forges
+
+Radicle is the source of truth for the repos this node carries, but most people looking for the code are not on the Radicle network. The `radicle-mirror` CronJob (`mirror-cronjob.yaml`) closes that gap: once a day at 03:17 UTC it runs `push_rad_code.sh`, which keeps a bare mirror clone of each repo marked for mirroring in `seeded-repos.txt` and pushes its branches and tags on to GitHub, GitLab and Codeberg.
+
+The pushes are one-way and forced (`+refs/heads/*`, `+refs/tags/*`), so the mirrors are disposable — anything committed directly on a forge is overwritten by the next run. Treat them as read-only copies and keep taking changes through Radicle.
+
+Only the *canonical* refs travel: the default branch and tags, as the repo's delegates have them. Radicle's per-peer namespaces (`refs/namespaces/<nid>/…`) and its collaborative objects — issues, patches — match neither refspec and stay on Radicle. A mirror is a copy of the code, not of the project around it.
+
+The push carries no `--prune`, so a branch deleted upstream is left standing on the forges instead of being deleted from them. That is the cautious default; add `--prune` to the `git push` in the script if you would rather the mirrors track deletions too.
+
+The job clones over HTTPS from the public seed at `seed.radicle.dev`, not from the node running beside it in this namespace. That is deliberate: serving a repo over HTTPS is `radicle-httpd`'s job and this image does not carry it (see "What this does not include" below). So the mirror depends on neither this cluster's node being healthy nor the port forward from step 2.
+
+### Before it runs
+
+The repo list is `seeded-repos.txt` — the same file the node's seeding policy comes from, so there is one list, not two. An entry is mirrored only if it carries a second column naming the repo on the forges:
+
+```text
+rad:z4KE6B3D7hDborYdrRoehccephmnh fluxcd-template   # seeded, and mirrored out
+rad:z3gqcJUoA1n9HaHKufZs5FCSGazv5                   # seeded only
+```
+
+That column is opt-in per repo because seeding and republishing are different acts: you seed repos to keep them alive on the network, including other people's, and pushing those to your own GitHub account under your name is not implied by it. The node's seeding parser keeps only `rad:` tokens, so the extra column changes nothing about what gets replicated.
+
+`push_rad_code.sh` still ships with a literal `USER` in its three remote URLs and **will fail until you fix that**:
+
+1. Replace `USER` in `MIRRORS`, and delete the line for any forge you do not use.
+2. Create the repos on each forge first. `git push` will not create them, and a missing one fails the run for that repo.
+
+Both files reach the next run on their own. The script's ConfigMap carries a content hash so Flux rolls a new one; `seeded-repos.txt` shares the node's un-hashed `radicle-config` ConfigMap, which updates in place. Neither needs a restart here — though the *node* still does after a seeding change, as above, since it reads its copy once at startup.
+
+### The deploy key
+
+The job authenticates with a single SSH key that needs **write** access on each forge. Generate it with an empty passphrase — the job runs with `BatchMode=yes` and has no way to unlock an encrypted key:
+
+```shell
+ssh-keygen -t ed25519 -N '' -C radicle-mirror -f /tmp/radicle-mirror
+```
+
+Paste the private half into the Secret, then encrypt in place:
+
+```shell
+sops apps/radicle/mirror-ssh.secrets.yaml
+```
+
+Add the public half (`/tmp/radicle-mirror.pub`) to each forge and delete both files. A per-repo deploy key is the tighter choice wherever the forge offers one — GitHub calls it Settings → Deploy keys with "Allow write access", GitLab likewise a deploy key, Codeberg a repository SSH key. An account-level key is one entry instead of one per repo, at the cost of handing the job everything that account can push to.
+
+### Adding a forge
+
+`mirror-known-hosts` is the job's entire `known_hosts`, and it runs `StrictHostKeyChecking=yes` — a host that is not in that file fails the push instead of being trusted on sight, which is the only sane default for a job with nobody watching it. Adding a forge means adding its host key, checked against that forge's own published fingerprint rather than merely scraped:
+
+```shell
+ssh-keyscan -t ed25519,rsa <host> > /tmp/hostkeys
+ssh-keygen -lf /tmp/hostkeys        # compare each line against the forge's docs
+```
+
+The fingerprints for the three forges already listed, and the source each was verified against, are in the comments at the top of `mirror-known-hosts`.
+
+### Checking on the mirror
+
+```shell
+kubectl -n radicle get cronjob radicle-mirror
+kubectl -n radicle get jobs
+kubectl -n radicle logs job/<job-name>
+```
+
+To run it now rather than waiting for 03:17:
+
+```shell
+kubectl -n radicle create job --from=cronjob/radicle-mirror radicle-mirror-manual
+```
+
+The first run for a repo is a full mirror clone and can take a while; after that it fetches only what changed, because the clones persist on the `radicle-mirror-cache` PVC. That volume is purely a cache — deleting it costs one slow run and nothing else, which is why it is the one PVC here without the prune annotation. `concurrencyPolicy: Forbid` means a run that overruns its next schedule delays it instead of racing it for that volume, and `activeDeadlineSeconds` caps a hung fetch at an hour so it cannot block the schedule indefinitely.
+
 ## Upgrading
 
-The image tracks upstream and is rebuilt whenever Radicle releases, but the digest in values.yaml is what actually pins it, so upgrades are deliberate. It appears **twice** — `image.tag` and the `seed-policies` initContainer, which runs the same image but gets no help from the chart's templating. Bump both. Get the current digest:
+The image tracks upstream and is rebuilt whenever Radicle releases, but the digest in values.yaml is what actually pins it, so upgrades are deliberate. It appears in **three** places — `image.tag` and the `seed-policies` initContainer in values.yaml, and the `radicle-mirror` CronJob in mirror-cronjob.yaml, which reuses this image for its bash, git and ssh. Bump all three. Get the current digest:
 
 ```shell
 tok=$(curl -s "https://auth.docker.io/token?service=registry.docker.io&scope=repository:dirk1980/radicle-seed-node:pull" | sed 's/.*"token":"\([^"]*\)".*/\1/')

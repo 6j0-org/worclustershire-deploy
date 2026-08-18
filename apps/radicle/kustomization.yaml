@@ -14,6 +14,9 @@ resources:
   - node-key.secrets.yaml
   - release.yaml
   - tcproute.yaml
+  - mirror-cache-pvc.yaml
+  - mirror-ssh.secrets.yaml
+  - mirror-cronjob.yaml
 configMapGenerator:
   - name: radicle-values
     files:
@@ -30,6 +33,16 @@ configMapGenerator:
       - seeded-repos.txt=seeded-repos.txt
     options:
       disableNameSuffixHash: true
+
+  # The mirror CronJob's script and its known_hosts. This one keeps the hash:
+  # the only reference to it is a volume in mirror-cronjob.yaml, which
+  # kustomize rewrites for us, so editing the script rolls a new ConfigMap
+  # name and the next run picks it up -- no restart to remember, unlike
+  # radicle-config above.
+  - name: radicle-mirror
+    files:
+      - push_rad_code.sh
+      - known_hosts=mirror-known-hosts
 secretGenerator:
   - name: radicle-secrets
     files:

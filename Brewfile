@@ -27,6 +27,10 @@ brew "git"
 # helm - pulling charts, showing values, prototyping installs
 brew "helm"
 
+# openssh (ssh-keygen, ssh-keyscan) - generating the radicle mirror deploy key
+# and verifying forge host keys for apps/radicle/mirror-known-hosts
+brew "openssh"
+
 # pre-commit - git hook framework used by .pre-commit-config.yaml
 brew "pre-commit"
 

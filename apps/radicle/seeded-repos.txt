@@ -14,6 +14,20 @@
 # Get a repo's ID with `rad .` inside a working copy, or `rad inspect --rid`.
 # Blank lines and anything after a # are ignored.
 #
+# An entry may carry a second column, and that opts it into the daily mirror
+# push as well:
+#
+#   rad:z4KE6B3D7hDborYdrRoehccephmnh myproject   <- seeded, and mirrored out
+#   rad:z3gqcJUoA1n9HaHKufZs5FCSGazv5             <- seeded only
+#
+# The name is what the repo is called on GitHub/GitLab/Codeberg, so it has to
+# be a valid repo name, and the repo has to already exist there. Seeding a repo
+# and republishing it under your own forge account are separate decisions --
+# hence the opt-in, rather than every seeded repo being pushed automatically.
+# The seeding parser ignores the column (it keeps only rad: tokens), so adding
+# one changes nothing about what the node replicates. See README.md ->
+# "Mirroring repos out to other forges".
+#
 # The list is mounted from a ConfigMap that is read once at startup, so after
 # editing this, let Flux sync and then:
 #
@@ -21,7 +35,7 @@
 #
 # Example:
 #   rad:z3gqcJUoA1n9HaHKufZs5FCSGazv5   # radicle heartwood
-rad:z4KE6B3D7hDborYdrRoehccephmnh # fluxcd-template
+rad:z4KE6B3D7hDborYdrRoehccephmnh fluxcd-template
 
 
 # --- add yours below ---

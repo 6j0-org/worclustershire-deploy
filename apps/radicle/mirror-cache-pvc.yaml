@@ -1,0 +1,25 @@
+# The bare mirror clones push_rad_code.sh pushes from. The script is written
+# around a persistent cache: it clones a repo once and does `remote update`
+# from then on, so without a volume every daily run would re-fetch the full
+# history of every mirrored repo from the public seed.
+#
+# Deliberately *not* annotated kustomize.toolkit.fluxcd.io/prune: disabled,
+# unlike radicle-home-pvc.yaml next door. That annotation protects data that
+# only exists here; this volume holds nothing that is not already in Radicle
+# and on the mirrors, so losing it costs one slow run, not a repo. See
+# docs/prune.argdown for the general argument.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: radicle-mirror-cache
+spec:
+  accessModes:
+    # One writer, and the CronJob is concurrencyPolicy: Forbid, so a single
+    # RWO claim is enough. It does pin the job to the node holding the volume.
+    - ReadWriteOnce
+  # Sized for the REPOS list in push_rad_code.sh, which is short. A mirror
+  # clone is roughly the size of the repo's full history; revisit as the list
+  # grows, and remember it is a cache -- deleting it is safe.
+  resources:
+    requests:
+      storage: 5Gi
