@@ -95,6 +95,99 @@ initContainers:
       - name: tmp
         mountPath: /tmp
 
+  # radicle-httpd: the HTTP gateway that makes repos clonable over git-over-
+  # HTTPS, so `git clone https://radicle.6j0.org/fluxcd-template.git` works for
+  # people who have no Radicle client at all. See README.md -> "Cloning over
+  # HTTPS".
+  #
+  # It is a native sidecar -- an initContainer with restartPolicy: Always --
+  # rather than its own Deployment, because it reads the node's storage and
+  # databases directly rather than talking to the node over the network. That
+  # storage is the radicle-home PVC, which is ReadWriteOnce and already
+  # attached here; a separate Deployment would need node affinity to get at it.
+  # Native sidecars need Kubernetes 1.29 (beta, on by default) or 1.33 for GA.
+  #
+  # The chart has no sidecars/extraContainers value, but it passes
+  # initContainers through with a plain toYaml, so restartPolicy survives.
+  # Being listed after seed-policies means that one still runs to completion
+  # first.
+  - name: radicle-httpd
+    restartPolicy: Always
+    # Unlike the node image, this binary is NOT from the signed upstream
+    # release tarball -- that ships only rad, radicle-node and git-remote-rad.
+    # radicle-httpd lives in its own repo and has to be compiled, so this is a
+    # third-party build by the same publisher as the node image. Weigh that
+    # before bumping, and check the digest below is one you meant to run.
+    image: docker.io/dirk1980/radicle-httpd@sha256:5e95be30e4bde55b509a65fd56f8b825cafd0f5cd752c1a13e79aad75b958895
+    # The alias list is built at startup from seeded-repos.txt, so the same
+    # file drives what the node seeds, what the mirror CronJob pushes, and what
+    # names resolve over HTTPS. An entry's second column is the name in the
+    # URL; entries without one stay reachable by their rad: ID.
+    #
+    # The image's entrypoint bakes in --listen, so it is replaced wholesale.
+    command:
+      - /bin/bash
+      - -c
+      - |
+        set -euo pipefail
+        aliases=()
+        while read -r rid name; do
+          aliases+=(--alias "$name" "$rid")
+        done < <(sed 's/#.*//' /etc/radicle/seeded-repos.txt |
+                 awk '$1 ~ /^rad:/ && NF >= 2 { print $1, $2 }')
+        echo "radicle-httpd: ${#aliases[@]} alias arguments from seeded-repos.txt" >&2
+        exec /usr/local/bin/radicle-httpd --listen '[::]:8080' \
+          ${aliases[@]+"${aliases[@]}"}
+    ports:
+      - name: httpd
+        containerPort: 8080
+        protocol: TCP
+    # Liveness only, deliberately no readinessProbe. Pod readiness gates the
+    # Service endpoints, and those endpoints are what the *TCPRoute* uses to
+    # reach the node on 8776 -- so a readiness probe here would let a sick web
+    # gateway pull the seed node off the p2p network. A liveness failure
+    # restarts this container alone and leaves the node serving peers.
+    livenessProbe:
+      httpGet:
+        path: /api/v1
+        port: httpd
+      periodSeconds: 30
+      failureThreshold: 3
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      readOnlyRootFilesystem: true
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+    # Mirrors the node's own mounts: radicle-httpd needs a complete profile at
+    # RAD_HOME, not just the storage directory.
+    volumeMounts:
+      - name: radicle-home
+        mountPath: /radicle-home
+      - name: config
+        mountPath: /radicle-home/config.json
+        subPath: config.json
+        readOnly: true
+      # Both key files, as the node gets them. radicle-httpd is a read-only
+      # view over the node's state and does not sign anything, so narrowing
+      # this to radicle.pub with a `items:` selector would be worth testing --
+      # profile loading may or may not insist the private key file exists.
+      - name: node-key
+        mountPath: /radicle-home/keys
+        readOnly: true
+      # For seeded-repos.txt, same as the seed-policies initContainer.
+      - name: config
+        mountPath: /etc/radicle
+        readOnly: true
+      - name: tmp
+        mountPath: /tmp
+
 volumes:
   # Under a StatefulSet the chart templates this claim for you; a Deployment
   # gets one claim for the whole workload, declared in radicle-home-pvc.yaml.

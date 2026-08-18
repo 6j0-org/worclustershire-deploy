@@ -14,6 +14,8 @@ resources:
   - node-key.secrets.yaml
   - release.yaml
   - tcproute.yaml
+  - httpd-service.yaml
+  - httproute.yaml
   - mirror-cache-pvc.yaml
   - mirror-ssh.secrets.yaml
   - mirror-cronjob.yaml

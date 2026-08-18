@@ -1,0 +1,30 @@
+# Git-over-HTTPS for the repos this node seeds:
+#
+#   git clone https://radicle.6j0.org/fluxcd-template.git
+#
+# The name in that URL is a radicle-httpd alias, built at startup from the
+# second column of seeded-repos.txt -- see README.md -> "Cloning over HTTPS".
+# Repos without an alias stay reachable by their full rad: ID.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: radicle-httpd
+spec:
+  parentRefs:
+    - name: eg-public
+      namespace: envoy-gateway-system
+  # No sectionName: the hostname below matches exactly one HTTPS listener on
+  # that Gateway (radicle-6j0-org), and the catch-all :80 listener only accepts
+  # routes from the Gateway's own namespace, so there is nothing else to bind
+  # to. Contrast tcproute.yaml, where a TCP listener carries no hostname to
+  # disambiguate with and sectionName is mandatory.
+  hostnames:
+    - radicle.6j0.org
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: radicle-httpd
+          port: 8080
