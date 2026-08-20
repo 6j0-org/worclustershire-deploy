@@ -1,0 +1,20 @@
+# https://fluxcd.io/flux/guides/helmreleases/#refer-to-values-in-configmaps-generated-with-kustomize
+# https://fluxcd.io/flux/guides/helmreleases/#refer-to-values-in-secret-generated-with-kustomize-and-sops
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# No namespace.yaml here: this deploys into the cert-manager namespace, which
+# apps/cert-manager already owns. Same arrangement as
+# apps/cert-manager-custom-resources.
+namespace: cert-manager
+
+resources:
+  - gitrepo.yaml
+  - release.yaml
+configMapGenerator:
+  - name: cert-manager-webhook-porkbun-values
+    files:
+      - values.yaml=values.yaml
+configurations:
+  - kustomizeconfig.yaml

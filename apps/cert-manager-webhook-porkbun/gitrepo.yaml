@@ -1,0 +1,15 @@
+# The chart lives in the upstream git repo. Its advertised Helm repo
+# (https://pabloa.github.io/cert-manager-webhook-porkbun) returns 404 -- the
+# chart-releaser action runs but GitHub Pages was never enabled -- so the chart
+# is pulled straight from a pinned git tag instead. That is also the more
+# auditable option for a third-party solver: the tag is immutable, whereas the
+# published container tag `latest` is not (see values.yaml).
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: cert-manager-webhook-porkbun
+spec:
+  interval: 60m
+  url: https://github.com/pabloa/cert-manager-webhook-porkbun
+  ref:
+    tag: v1.1.3

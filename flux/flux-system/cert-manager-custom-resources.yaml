@@ -6,6 +6,10 @@ metadata:
 spec:
   dependsOn:
     - name: cert-manager
+    # The ClusterIssuer's dns01 solver points at the Porkbun webhook's
+    # APIService. Ordering it after the webhook means the solver is resolvable
+    # the first time a wildcard Order is worked, rather than on a later retry.
+    - name: cert-manager-webhook-porkbun
   interval: 10m0s
   sourceRef:
     kind: GitRepository

@@ -1,0 +1,40 @@
+# https://fluxcd.io/flux/components/helm/helmreleases/
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cert-manager-webhook-porkbun
+spec:
+  interval: 10m
+  valuesFrom:
+    - kind: ConfigMap
+      name: cert-manager-webhook-porkbun-values
+  chart:
+    spec:
+      # Path to the chart inside the GitRepository, not a chart name. The
+      # version field is meaningless for a git source -- the pinned tag in
+      # gitrepo.yaml is what selects the version.
+      chart: ./charts/cert-manager-webhook-porkbun
+      sourceRef:
+        kind: GitRepository
+        name: cert-manager-webhook-porkbun
+
+  # The chart ships a cluster-wide secret-reader granting get/watch/list on
+  # secrets in EVERY namespace, which is far more than this solver needs: it
+  # only ever calls Secrets(ns).Get() for the one credentials secret (main.go).
+  # Narrow it to a single get on porkbun-secret. resourceNames is only honoured
+  # for get -- it does not apply to list/watch -- which is exactly why dropping
+  # those two verbs is a prerequisite, not a bonus.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: ClusterRole
+              name: cert-manager-webhook-porkbun:secret-reader
+            patch: |
+              - op: replace
+                path: /rules
+                value:
+                  - apiGroups: [""]
+                    resources: ["secrets"]
+                    resourceNames: ["porkbun-secret"]
+                    verbs: ["get"]
