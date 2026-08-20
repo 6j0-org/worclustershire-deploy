@@ -237,3 +237,16 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+
+    - name: wiki-6j0-org
+      hostname: "wiki.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: wiki-6j0-org-tls
+      allowedRoutes:
+        namespaces:
+          from: All
