@@ -1,0 +1,25 @@
+# dyff between <(yq . <(helm show values requarks/wiki --version 3.0.0)) <(yq eval '. * load("values.yaml")' <(helm show values requarks/wiki --version 3.0.0))
+# vim -O <(helm show values requarks/wiki --version 3.0.0) values.yaml
+
+# Ingress is handled by a standalone HTTPRoute (wiki-httproute.yaml) on the
+# Envoy Gateway, so the chart's built-in Ingress is disabled.
+ingress:
+  enabled: false
+
+# Use the CloudNativePG cluster (cloudnative-pg.yaml) instead of the bundled
+# PostgreSQL deployment. With postgresql.enabled false and no
+# externalPostgresql.databaseURL, the chart connects to the external DB using
+# the discrete host/port/database/username fields plus a secret for the
+# password. CNPG auto-generates the `wiki-database-app` secret (basic-auth)
+# with the password for the `wiki` role under the `password` key.
+postgresql:
+  enabled: false
+externalPostgresql:
+  host: wiki-database-rw
+  port: 5432
+  database: wiki
+  username: wiki
+  existingSecret: wiki-database-app
+  existingSecretKey: password
+  # In-cluster traffic to CNPG doesn't use TLS.
+  ssl: false

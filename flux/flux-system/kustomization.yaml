@@ -43,6 +43,6 @@ resources:
   # - seafile-mariadb.yaml
 
   - radicle.yaml
-
+  - wiki.yaml
 patchesStrategicMerge:
   - flux-resources-patch.yaml

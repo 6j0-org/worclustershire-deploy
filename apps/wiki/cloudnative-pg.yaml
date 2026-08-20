@@ -1,0 +1,14 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: wiki-database
+spec:
+  instances: 1
+
+  storage:
+    size: 8Gi
+
+  bootstrap:
+    initdb:
+      database: wiki
+      owner: wiki

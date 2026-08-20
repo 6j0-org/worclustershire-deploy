@@ -1,0 +1,17 @@
+# https://fluxcd.io/flux/components/helm/helmreleases/
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: wiki
+spec:
+  interval: 10m
+  valuesFrom:
+    - kind: ConfigMap
+      name: wiki-values
+  chart:
+    spec:
+      chart: wiki
+      version: 3.0.0
+      sourceRef:
+        kind: HelmRepository
+        name: requarks
