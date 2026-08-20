@@ -4,7 +4,7 @@ metadata:
   name: wiki
 spec:
   parentRefs:
-    - name: eg
+    - name: eg-public
       namespace: envoy-gateway-system
   hostnames:
     - wiki.6j0.org
