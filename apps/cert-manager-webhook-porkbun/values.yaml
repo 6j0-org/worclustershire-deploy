@@ -1,0 +1,16 @@
+# dyff between <(yq . <(helm show values ./charts/cert-manager-webhook-porkbun)) <(yq eval '. * load("values.yaml")' <(helm show values ./charts/cert-manager-webhook-porkbun))
+# The chart is not published to a Helm repo, so inspect it from a checkout of
+# https://github.com/pabloa/cert-manager-webhook-porkbun at tag v1.1.3.
+
+# The chart defaults to the mutable `latest` tag. Pin it. Note the chart's own
+# version trails the code: Chart.yaml says 1.1.1 at git tag v1.1.3, so
+# appVersion cannot be relied on to pick the right image either.
+image:
+  tag: "1.1.3"
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    memory: 64Mi

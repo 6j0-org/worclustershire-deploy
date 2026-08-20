@@ -37,10 +37,44 @@ spec:
       #         name: eg-public
       #         namespace: envoy-gateway-system
 
-      # Gateway HTTP01 solver
+      # Gateway HTTP01 solver. This is the default: no selector, so it matches
+      # anything the dns01 solver below does not.
       # https://cert-manager.io/docs/usage/gateway/#example-self-service-tls-with-listenerset-and-http-01
       - http01:
           gatewayHTTPRoute: {}
+
+      # Porkbun DNS01, for wildcards only.
+      #
+      # Let's Encrypt will not validate a wildcard over HTTP01 -- the ACME
+      # authorization for *.example.org comes back offering dns-01 and nothing
+      # else. Without a dns01 solver cert-manager finds no match, never creates
+      # a Challenge, and the Order sits `pending` forever with no events. That
+      # is what happened to the two garage wildcard certs.
+      #
+      # 6j0.org is on Porkbun nameservers and cert-manager has no built-in
+      # Porkbun solver, so this goes through a third-party webhook deployed by
+      # apps/cert-manager-webhook-porkbun.
+      #
+      # The selector is deliberately narrow. A dnsZones selector on "6j0.org"
+      # would outrank the unselected http01 solver above and quietly move every
+      # certificate in the zone onto DNS01; listing the two wildcard dnsNames
+      # explicitly leaves the working HTTP01 certs alone. Add a name here when
+      # a new wildcard is needed.
+      - dns01:
+          webhook:
+            groupName: cert-manager-webhook-porkbun.pabloa.dev
+            solverName: porkbun
+            config:
+              apiKey:
+                name: porkbun-secret
+                key: PORKBUN_API_KEY
+              secretApiKey:
+                name: porkbun-secret
+                key: PORKBUN_SECRET_API_KEY
+        selector:
+          dnsNames:
+            - "*.s3.garage.6j0.org"
+            - "*.web.garage.6j0.org"
 
       # Cloudflare
       # - dns01:
