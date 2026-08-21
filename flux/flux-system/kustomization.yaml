@@ -27,7 +27,7 @@ resources:
   - loki.yaml
   - eg.yaml
   - eg-custom-resources.yaml
-  - garage.yaml
+  # - garage.yaml
   # - hatsmith.yaml
   # - radicale.yaml
   # - copyparty.yaml
