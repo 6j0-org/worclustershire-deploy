@@ -21,12 +21,10 @@ resources:
   - immich.yaml
   - cnpg.yaml
   # - metrics-server.yaml # Broken, see TODO in metrics-server dir.
-
   # - descheduler.yaml
   - kube-prometheus-stack.yaml
-  # TODO: Needs S3 object storage
-  # - loki.yaml
-
+  - alloy.yaml
+  - loki.yaml
   - eg.yaml
   - eg-custom-resources.yaml
   - garage.yaml

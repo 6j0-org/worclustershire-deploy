@@ -61,10 +61,10 @@ loki:
   storage:
     type: s3
     bucketNames:
-      chunks: devopscoop-project1-dev-loki-chunks # TODO fix this
-      ruler: devopscoop-project1-dev-loki-ruler # TODO fix this
+      chunks: worclustershire-loki-chunks
+      ruler: worclustershire-loki-ruler
     s3:
-      region: us-east-2
+      region: us-west-1
       # Leave endpoint unset to use the regional AWS S3 endpoint. AWS S3 uses
       # virtual-hosted-style addressing, so path-style stays off.
       s3ForcePathStyle: false
@@ -72,7 +72,7 @@ loki:
       # If you don't use IRSA, point at a custom endpoint and supply credentials
       # via helm_secrets.yaml instead of the serviceAccount annotation below.
       # For path-style backends, also set s3ForcePathStyle: true.
-      # endpoint: CHANGEME-s3-endpoint
+      endpoint: https://s3.us-west-1.wasabisys.com
       # insecure: false
 
   # Keep logs from growing in the bucket forever. The compactor (which runs
