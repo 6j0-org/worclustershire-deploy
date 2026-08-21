@@ -250,3 +250,17 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+
+    # HTTPS listener for gathio.6j0.org
+    - name: gathio-6j0-org
+      hostname: "gathio.6j0.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: gathio-6j0-org-tls
+      allowedRoutes:
+        namespaces:
+          from: All
