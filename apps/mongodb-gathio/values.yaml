@@ -1,0 +1,21 @@
+# dyff between <(yq . <(helm show values groundhog2k/mongodb --version 0.8.1)) <(yq eval '. * load("values.yaml")' <(helm show values groundhog2k/mongodb --version 0.8.1))
+# vim -O <(helm show values groundhog2k/mongodb --version 0.8.1) values.yaml
+
+# MongoDB for gathio, deployed into the gathio namespace, so the Service is
+# mongodb-gathio.gathio.svc.cluster.local:27017 (headless:
+# mongodb-gathio-internal). Single standalone node — replicaSet is off, which
+# is the chart default.
+#
+# The root credentials and the gathio user/database live in helm_secrets.yaml.
+# Both are only read on FIRST start, when the data directory is empty; changing
+# them later does nothing to an existing volume.
+image:
+  # Chart default is the appVersion tag (8.3.8), unpinned. Digest is the
+  # multi-arch index for 8.3.8 (linux/amd64 + linux/arm64).
+  repository: "mongo@sha256"
+  tag: "5211c51171f57ae60842b11664bb244628971b3d35325762a97888337b9bb0db" # 8.3.8
+
+storage:
+  requestedSize: 5Gi
+
+resources: {}

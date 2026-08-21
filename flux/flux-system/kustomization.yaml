@@ -35,6 +35,8 @@ resources:
   - timetracker.yaml
   # - oxicloud.yaml
   - peertube.yaml
+  # - mongodb-gathio.yaml
+  # - gathio.yaml # Enable mongodb-gathio.yaml too — gathio dependsOn it.
 
   #  seafile ValueError: Invalid CACHE_PROVIDER: database
   # - seafile.yaml
