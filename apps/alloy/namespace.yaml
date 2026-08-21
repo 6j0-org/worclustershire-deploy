@@ -4,3 +4,11 @@ metadata:
   annotations:
     kustomize.toolkit.fluxcd.io/prune: disabled
   name: alloy
+
+  # Alloy tails /var/log/pods through a hostPath mount (alloy.mounts.varlog in
+  # values.yaml). Talos enforces the "baseline" Pod Security profile
+  # cluster-wide, and baseline forbids hostPath volumes outright, so every
+  # DaemonSet pod is rejected without this opt-out.
+  # https://docs.siderolabs.com/kubernetes-guides/security/pod-security#override-the-pod-security-admission-configuration
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
