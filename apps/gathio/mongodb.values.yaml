@@ -6,7 +6,8 @@
 # mongodb-gathio-internal). Single standalone node — replicaSet is off, which
 # is the chart default.
 #
-# The root credentials and the gathio user/database live in helm_secrets.yaml.
+# The root credentials and the gathio user/database live in
+# mongodb.helm_secrets.yaml.
 # Both are only read on FIRST start, when the data directory is empty; changing
 # them later does nothing to an existing volume.
 image:
