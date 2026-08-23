@@ -48,6 +48,24 @@ immich:
     storageTemplate:
       enabled: true
       template: "{{y}}/{{y}}-{{MM}}-{{dd}}/{{filename}}"
+    # Nightly integrity checks. Defaults are all "0 03 * * *" (EVERY_DAY_AT_3AM),
+    # but the container is Etc/UTC with TZ unset, so 03:00 UTC lands at 8PM Pacific.
+    # Cron here is evaluated in UTC: 14:00 UTC == 07:00 PDT (06:00 PST in winter).
+    integrityChecks:
+      # Metadata-only (stat + directory walk); ~1s to queue. Cheap, keep daily.
+      missingFiles:
+        enabled: true
+        cronExpression: "0 14 * * *"
+      untrackedFiles:
+        enabled: true
+        cronExpression: "0 14 * * *"
+      # Re-reads every asset byte to verify checksums: 100-250 GiB per run off
+      # immich-library-pvc, ~2/3 of it crossing the LAN from remote replicas.
+      # Weekly (Sundays) instead of daily. Longhorn's snapshotDataIntegrity plus
+      # 3 replicas already cover bit rot underneath this.
+      checksumFiles:
+        enabled: true
+        cronExpression: "0 14 * * 0"
 valkey:
   enabled: true
 server:
