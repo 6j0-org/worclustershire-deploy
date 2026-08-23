@@ -23,8 +23,8 @@ spec:
     # cert-manager-custom-resources   64m   False   ClusterIssuer/cert-manager/letsencrypt dry-run failed (Invalid): ClusterIssuer.cert-manager.io "letsencrypt" is invalid: spec.acme.privateKeySecretRef: Required value...
     #
     # https://github.com/cert-manager/cert-manager/issues/7845
-    # privateKeySecretRef:
-    #   name: tls.key
+    privateKeySecretRef:
+      name: tls.key
 
     solvers:
 
