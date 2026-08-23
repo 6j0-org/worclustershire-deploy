@@ -5,7 +5,7 @@ config:
   serverName: peertube.6j0.org
 
   admin:
-    email: gmail@evanstucker.com
+    email: xkcvemiv@anonaddy.me
 
   # No SMTP configured yet; clear the default `smtp` transport so the chart does
   # not require a mail hostname. Set a transport + hostname here to enable email.
