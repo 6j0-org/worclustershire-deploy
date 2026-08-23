@@ -12,19 +12,25 @@ config:
   mail:
     transport: ""
 
+  # Main PVC for uploads, transcoding scratch, and plugins. The chart defaults to
+  # 16Gi; held at 1Gi while the instance is being brought up.
+  persistence:
+    size: 1Gi
+
 # Ingress is handled by a standalone HTTPRoute (peertube-httproute.yaml) on the
 # Envoy Gateway, so the chart's built-in Ingress is left disabled (the default).
 
 # Use the CloudNativePG cluster (cloudnative-pg.yaml) instead of the bundled
-# Bitnami PostgreSQL subchart. CNPG auto-generates the `peertube-database-app`
-# secret (basic-auth) with the password for the `peertube` role.
+# Bitnami PostgreSQL subchart. The password for the `peertube` role comes from
+# db-owner.secrets.yaml, which cloudnative-pg.yaml hands to initdb -- so CNPG
+# does not generate a `peertube-database-app` secret of its own.
 postgresql:
   enabled: false
 externalPostgresql:
   host: peertube-database-rw
   database: peertube
   username: peertube
-  existingSecret: peertube-database-app
+  existingSecret: peertube-db-owner
   existingSecretKey: password
 
 # The chart always renders `database.ssl: true` for an external DB (its helper
@@ -34,6 +40,17 @@ externalPostgresql:
 extraEnv:
   - name: PEERTUBE_DB_SSL
     value: "false"
+  # Pin the root password PeerTube generates on its *first* boot, rather than
+  # letting it invent a random one that only ever appears in the pod log. The
+  # installer skips admin creation once any user exists, so this only takes
+  # effect against a freshly-created database. Read the value with
+  # `sops -d admin.secrets.yaml`.
+  # TODO: Add a field to the official chart to set credentials.
+  - name: PT_INITIAL_ROOT_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: peertube-admin
+        key: initial-root-password
 
 # Use the Valkey release (valkey.yaml) instead of the bundled Bitnami Redis
 # subchart. PeerTube authenticates as Valkey's `default` ACL user, whose password

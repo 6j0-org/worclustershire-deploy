@@ -6,12 +6,23 @@ spec:
   instances: 1
 
   storage:
-    size: 8Gi
+    size: 1Gi
+
+  # Leave the `postgres` password NULL. pg_hba ends with `host all all all
+  # scram-sha-256` and the namespace has no NetworkPolicy, so a superuser password
+  # would be reachable from anywhere in the cluster; NULL makes that login
+  # impossible. Break-glass access is unaffected -- `kubectl exec` into the pod and
+  # `psql -U postgres` authenticates over the local socket via peer auth.
+  enableSuperuserAccess: false
 
   bootstrap:
     initdb:
       database: peertube
       owner: peertube
+      # Pins the owner password instead of letting CNPG generate one into a
+      # peertube-database-app secret that exists only in the cluster.
+      secret:
+        name: peertube-db-owner
       # PeerTube requires these extensions; the application role is not a
       # superuser, so create them here during bootstrap.
       # ref: https://docs.joinpeertube.org/install/any-os#database

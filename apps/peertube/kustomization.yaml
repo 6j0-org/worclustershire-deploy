@@ -10,8 +10,10 @@ namespace: peertube
 resources:
   - namespace.yaml
   - helmrepo.yaml
+  - admin.secrets.yaml
   - release.yaml
   - peertube-httproute.yaml
+  - db-owner.secrets.yaml
   - cloudnative-pg.yaml
   - valkey-auth.secrets.yaml
   - valkey.yaml
