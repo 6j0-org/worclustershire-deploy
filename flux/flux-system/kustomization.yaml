@@ -34,7 +34,7 @@ resources:
   - nextcloud-aio.yaml
   - timetracker.yaml
   # - oxicloud.yaml
-  # - peertube.yaml
+  - peertube.yaml
 
   #  seafile ValueError: Invalid CACHE_PROVIDER: database
   # - seafile.yaml
