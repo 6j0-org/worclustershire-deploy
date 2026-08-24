@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Setting namespace here will ensure that all objects managed by this Kustomization will explicitly be deployed to this namespace. You don't need to put specify `namespace:` anywhere else if you do this.
+namespace: flux-system
+
+resources:
+
+  # WARNING: Do not put the FluxInstance in this Kustomization. It is a
+  # fluxcd.controlplane.io custom resource, so its CRD does not exist until this
+  # HelmRelease has been installed, and a Kustomization that applies both at
+  # once fails its dry-run with:
+  #
+  #   no matches for kind "FluxInstance" in version "fluxcd.controlplane.io/v1"
+  #
+  # The FluxInstance lives in flux/flux-system/flux-instance.yaml instead.
+
+  - ocirepo.yaml
+  - release.yaml
