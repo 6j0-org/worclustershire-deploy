@@ -14,15 +14,7 @@ spec:
     # Exact version pin — disables the operator's automatic Flux updates.
     # Run ./update_flux-instance.sh to bump this together with the
     # digest-pinned controller images in kustomize.patches below.
-    #
-    # TEMPORARY: staged at 2.8.8 for the bootstrap -> flux-operator migration.
-    # Flux 2.9 drops image.toolkit.fluxcd.io/v1beta2, which this cluster still
-    # has in the image CRDs' status.storedVersions, so it must land on 2.8.x
-    # first and migrate the stored objects to v1. Once
-    #   kubectl get crd imagepolicies.image.toolkit.fluxcd.io \
-    #     -o jsonpath='{.status.storedVersions}'
-    # reports ["v1"], run ./update_flux-instance.sh and drop this note.
-    version: "2.8.8"
+    version: "2.9.4"
     registry: "ghcr.io/fluxcd"
     artifact: "oci://ghcr.io/controlplaneio-fluxcd/flux-operator-manifests"
   components:
@@ -73,49 +65,49 @@ spec:
       - patch: |
           - op: replace
             path: /spec/template/spec/containers/0/image
-            value: "ghcr.io/fluxcd/source-controller:v1.8.5@sha256:65172e2405cf95b92c4b00cefd28d5e8ffd1f81d6d097f85c6e83a9c557c9def"
+            value: "ghcr.io/fluxcd/source-controller:v1.9.4@sha256:8a8ed0a57b8b86f561d5a4309a69f65e62f0cebe4de8801593c5ff35a3bc3c23"
         target:
           kind: Deployment
           name: source-controller
       - patch: |
           - op: replace
             path: /spec/template/spec/containers/0/image
-            value: "ghcr.io/fluxcd/source-watcher:v2.1.1@sha256:b3ffcbde086ca630ac27430d4eca860e5434aa9b827c6c1d6419c4e8f59749d1"
+            value: "ghcr.io/fluxcd/source-watcher:v2.2.3@sha256:40f35415a78f4514aea41cf4d6dd299d59bc646eb4a73365eac831c8ced2445a"
         target:
           kind: Deployment
           name: source-watcher
       - patch: |
           - op: replace
             path: /spec/template/spec/containers/0/image
-            value: "ghcr.io/fluxcd/kustomize-controller:v1.8.5@sha256:70e2a25edeee82690e68662409fb1b60f7d3084c93435e8ab5337a6e0244ffed"
+            value: "ghcr.io/fluxcd/kustomize-controller:v1.9.4@sha256:2b8bec54ffb6caf421bd2a6c005d27f567d5dd4db7feb55794fb51fcabd69b8f"
         target:
           kind: Deployment
           name: kustomize-controller
       - patch: |
           - op: replace
             path: /spec/template/spec/containers/0/image
-            value: "ghcr.io/fluxcd/helm-controller:v1.5.5@sha256:b4b8f7715cc7cb61382eeb82bea108d1bdd965b00e7192c5dc9ab7436a33658b"
+            value: "ghcr.io/fluxcd/helm-controller:v1.6.3@sha256:16ada99456385100698a5d7adf90aba8a2089d987ab541c9566b6d7b0e897038"
         target:
           kind: Deployment
           name: helm-controller
       - patch: |
           - op: replace
             path: /spec/template/spec/containers/0/image
-            value: "ghcr.io/fluxcd/notification-controller:v1.8.4@sha256:75842ecfcca4397a788051d6b00ec34f96ea74788c92d9c360fc4d196ea04551"
+            value: "ghcr.io/fluxcd/notification-controller:v1.9.3@sha256:071c351a0fb163eeb6a2bb82f1e894f51b6b0734216d2e97d3d99c9ab9d710b9"
         target:
           kind: Deployment
           name: notification-controller
       - patch: |
           - op: replace
             path: /spec/template/spec/containers/0/image
-            value: "ghcr.io/fluxcd/image-reflector-controller:v1.1.2@sha256:45b219b1baddedcc0d6cd09da77c57d235bd225652eafb168981fb78cede640d"
+            value: "ghcr.io/fluxcd/image-reflector-controller:v1.2.4@sha256:d63550296dc9a6c2b7c9246cb7ef6e52d7469d5b104cd329622301b46971e255"
         target:
           kind: Deployment
           name: image-reflector-controller
       - patch: |
           - op: replace
             path: /spec/template/spec/containers/0/image
-            value: "ghcr.io/fluxcd/image-automation-controller:v1.1.4@sha256:a888b32b1e0f4fd754bc1db606741503300d3efb060e82b9c28d3852f1008049"
+            value: "ghcr.io/fluxcd/image-automation-controller:v1.2.4@sha256:0286cbba95a2606a006e370052cb642f4370cb42ceea8353b5cba922cf47770c"
         target:
           kind: Deployment
           name: image-automation-controller
