@@ -7,6 +7,7 @@ resources:
   - gotk-components.yaml
   - gotk-sync.yaml
   - flux-operator.yaml
+  - flux-instance.yaml
   - cert-manager-custom-resources.yaml
   - cert-manager.yaml
   # - external-dns.yaml
