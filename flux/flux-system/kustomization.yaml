@@ -4,8 +4,6 @@ kind: Kustomization
 labels:
   - pairs:
 resources:
-  - gotk-components.yaml
-  - gotk-sync.yaml
   - flux-operator.yaml
   - flux-instance.yaml
   - cert-manager-custom-resources.yaml
@@ -44,5 +42,3 @@ resources:
 
   - radicle.yaml
   - wiki.yaml
-patchesStrategicMerge:
-  - flux-resources-patch.yaml
