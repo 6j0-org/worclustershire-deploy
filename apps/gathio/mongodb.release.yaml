@@ -7,6 +7,16 @@ metadata:
   name: mongodb
 spec:
   interval: 10m
+  # Longhorn attach on this cluster can take ~10m (FailedAttachVolume "volume is
+  # not ready for workloads" retries), far past Helm's 5m default, which stalled
+  # the first install even though the StatefulSet came up healthy.
+  timeout: 30m
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
   valuesFrom:
     - kind: ConfigMap
       name: mongodb-values

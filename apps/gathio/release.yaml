@@ -9,6 +9,14 @@ spec:
   dependsOn:
     - name: mongodb
   interval: 10m
+  # Also a StatefulSet on Longhorn, so it needs the same headroom as mongodb.
+  timeout: 30m
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
   valuesFrom:
     - kind: ConfigMap
       name: gathio-values
