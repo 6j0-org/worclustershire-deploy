@@ -16,6 +16,6 @@ image:
   tag: "5211c51171f57ae60842b11664bb244628971b3d35325762a97888337b9bb0db" # 8.3.8
 
 storage:
-  requestedSize: 5Gi
+  requestedSize: 1Gi
 
 resources: {}

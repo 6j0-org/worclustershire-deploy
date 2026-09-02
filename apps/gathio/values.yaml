@@ -13,7 +13,7 @@ statefulSet:
       accessModes: ["ReadWriteOnce"]
       resources:
         requests:
-          storage: 5Gi
+          storage: 1Gi
 
 replicaCount: 1
 
