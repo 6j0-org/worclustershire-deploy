@@ -14,9 +14,9 @@ data:
     site_name = "Gathio"
     is_federated = true
     # Events are deleted this many days after they end. 0 disables deletion.
-    delete_after_days = 7
+    delete_after_days = 0
     show_kofi = false
-    show_public_event_list = false
+    show_public_event_list = true
     max_comment_length = 5000
     # 'nodemailer', 'sendgrid', 'mailgun', or 'none'. Switching away from 'none'
     # means adding the matching credentials to helm_secrets.yaml.
