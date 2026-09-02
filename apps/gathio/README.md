@@ -39,8 +39,8 @@ match no rule at all.
    [MongoDB](#mongodb) below. (Gathio does not crash when the DB is
    unreachable: it still starts and serves `/`, it just 500s on every event
    operation.)
-1. **Contact email.** `config.yaml` has `email = "contact@6j0.org"` as a
-   placeholder. `mail_service` is `none`, so gathio will not send mail (no event
+1. **Contact email.** Set to `b41jplz8@anonaddy.me` in `config.yaml`.
+   `mail_service` is `none`, so gathio will not send mail (no event
    edit links by email, no attendee notifications) until it is set to
    `nodemailer`/`sendgrid`/`mailgun` with credentials in `helm_secrets.yaml`.
 1. **Open instance.** `creator_email_addresses = []` means anyone who can reach

@@ -9,8 +9,8 @@ data:
     [general]
     domain = "gathio.6j0.org"
     port = "3000"
-    # TODO: contact address shown on the instance and used as the From: address.
-    email = "contact@6j0.org"
+    # Contact address shown on the instance and used as the From: address.
+    email = "b41jplz8@anonaddy.me"
     site_name = "Gathio"
     is_federated = true
     # Events are deleted this many days after they end. 0 disables deletion.
