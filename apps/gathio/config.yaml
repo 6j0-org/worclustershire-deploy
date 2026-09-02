@@ -8,21 +8,11 @@ data:
 
     [general]
     domain = "gathio.6j0.org"
-    port = "3000"
-    # Contact address shown on the instance and used as the From: address.
     email = "b41jplz8@anonaddy.me"
-    site_name = "Gathio"
-    is_federated = true
-    # Events are deleted this many days after they end. 0 disables deletion.
-    delete_after_days = 7
-    show_kofi = false
-    show_public_event_list = false
-    max_comment_length = 5000
-    # 'nodemailer', 'sendgrid', 'mailgun', or 'none'. Switching away from 'none'
-    # means adding the matching credentials to helm_secrets.yaml.
-    mail_service = "none"
-    # Empty means anyone can create events on this instance.
-    creator_email_addresses = []
+    delete_after_days = 0
+    show_public_event_list = true
+    # TODO: Setup mail_service
+    # mail_service = "none"
 
     [database]
     mongodb_url = "${GATHIO_MONGODB_URL}"
