@@ -1,5 +1,5 @@
-# dyff between <(yq . <(helm show values ananace-charts/peertube --version 1.7.5)) <(yq eval '. * load("values.yaml")' <(helm show values ananace-charts/peertube --version 1.7.5))
-# vim -O <(helm show values ananace-charts/peertube --version 1.7.5) values.yaml
+# dyff between <(yq . <(helm show values ananace-charts/peertube --version 1.8.2)) <(yq eval '. * load("values.yaml")' <(helm show values ananace-charts/peertube --version 1.8.2))
+# vim -O <(helm show values ananace-charts/peertube --version 1.8.2) values.yaml
 config:
   # Public server name, used to configure both PeerTube and federation.
   serverName: peertube.6j0.org

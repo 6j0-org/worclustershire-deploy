@@ -19,7 +19,7 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/lowercasename/gathio@sha256
-  tag: "999c2370cb7f8148be772d12289e0dc658001ec5ea9979d91da4dce942ee6129" # 1.6.5
+  tag: "cb5f0df25823139ed0faf0f99b4c321bf51722705d02a68a18b4b4be953f4573" # 1.6.7
 
 service:
   port: 3000

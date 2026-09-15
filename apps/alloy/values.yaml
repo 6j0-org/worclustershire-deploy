@@ -1,5 +1,5 @@
-# dyff between <(yq . <(helm show values grafana/alloy --version 1.8.2)) <(yq eval '. * load("values.yaml")' <(helm show values grafana/alloy --version 1.8.2))
-# vim -O <(helm show values grafana/alloy --version 1.8.2) values.yaml
+# dyff between <(yq . <(helm show values grafana/alloy --version 1.12.1)) <(yq eval '. * load("values.yaml")' <(helm show values grafana/alloy --version 1.12.1))
+# vim -O <(helm show values grafana/alloy --version 1.12.1) values.yaml
 
 # Grafana Alloy is the official successor to Promtail. It runs as a DaemonSet
 # (the chart's default controller type), tails each node's pod log files, and

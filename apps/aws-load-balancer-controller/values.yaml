@@ -1,5 +1,5 @@
-# dyff between <(yq . <(helm show values aws-load-balancer-controller/aws-load-balancer-controller --version v3.3.0)) <(yq eval '. * load("values.yaml")' <(helm show values aws-load-balancer-controller/aws-load-balancer-controller --version v3.3.0))
-# vim -O <(helm show values aws-load-balancer-controller/aws-load-balancer-controller --version v3.3.0) values.yaml
+# dyff between <(yq . <(helm show values aws-load-balancer-controller/aws-load-balancer-controller --version v3.5.0)) <(yq eval '. * load("values.yaml")' <(helm show values aws-load-balancer-controller/aws-load-balancer-controller --version v3.5.0))
+# vim -O <(helm show values aws-load-balancer-controller/aws-load-balancer-controller --version v3.5.0) values.yaml
 
 clusterName: project1-dev
 

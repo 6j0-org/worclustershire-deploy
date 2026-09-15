@@ -1,5 +1,5 @@
-# dyff between <(yq . <(helm show values crowdstrike/falcon-platform --version 1.4.0)) <(yq eval '. * load("values.yaml")' <(helm show values crowdstrike/falcon-platform --version 1.4.0))
-# vim -O <(helm show values crowdstrike/falcon-platform --version 1.4.0) values.yaml
+# dyff between <(yq . <(helm show values crowdstrike/falcon-platform --version 1.5.1)) <(yq eval '. * load("values.yaml")' <(helm show values crowdstrike/falcon-platform --version 1.5.1))
+# vim -O <(helm show values crowdstrike/falcon-platform --version 1.5.1) values.yaml
 
 # Create the component namespaces (falcon-system, falcon-kac,
 # falcon-image-analyzer) via pre-install hook. Only applies on install; if you
