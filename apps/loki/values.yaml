@@ -1,5 +1,5 @@
-# dyff between <(yq . <(helm show values grafana/loki --version 7.0.0)) <(yq eval '. * load("values.yaml")' <(helm show values grafana/loki --version 7.0.0))
-# vim -O <(helm show values grafana/loki --version 7.0.0) values.yaml
+# dyff between <(yq . <(helm show values grafana/loki --version 7.3.0)) <(yq eval '. * load("values.yaml")' <(helm show values grafana/loki --version 7.3.0))
+# vim -O <(helm show values grafana/loki --version 7.3.0) values.yaml
 
 # Single-process Loki backed by S3-compatible object storage. This is the
 # simplest topology that still uses durable object storage (good for up to a

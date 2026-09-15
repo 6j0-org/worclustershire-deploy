@@ -1,5 +1,5 @@
-# dyff between <(yq . <(helm show values oci://ghcr.io/immich-app/immich-charts/immich --version 0.13.1)) <(yq eval '. * load("values.yaml")' <(helm show values oci://ghcr.io/immich-app/immich-charts/immich --version 0.13.1))
-# vim -O <(helm show values oci://ghcr.io/immich-app/immich-charts/immich --version 0.13.1) values.yaml
+# dyff between <(yq . <(helm show values oci://ghcr.io/immich-app/immich-charts/immich --version 0.13.2)) <(yq eval '. * load("values.yaml")' <(helm show values oci://ghcr.io/immich-app/immich-charts/immich --version 0.13.2))
+# vim -O <(helm show values oci://ghcr.io/immich-app/immich-charts/immich --version 0.13.2) values.yaml
 controllers:
   main:
     strategy: Recreate
@@ -7,7 +7,7 @@ controllers:
       main:
         image:
           # Chart devs rejected my PR to bump image tag. They think a default install of the chart should install and outdated version of the app. I disagree. Oh well. Here we are...
-          tag: v3.1.0
+          tag: v3.2.2
         env:
           DB_HOSTNAME:
             valueFrom:
