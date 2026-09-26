@@ -38,3 +38,17 @@ cainjector:
 #   annotations:
 #     eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/cert-manager"
 # <<< eks
+
+# Expose cert-manager's metrics to Prometheus. The controller already serves
+# them on :9402, but the chart ships no ServiceMonitor, so nothing was scraping
+# it -- which is why longhorn-6j0-org-tls could fail renewal 29 times over a
+# month unnoticed. The `release` label is what this cluster's Prometheus
+# selects on (spec.ruleSelector / serviceMonitorSelector both match
+# release=kube-prometheus-stack); without it the ServiceMonitor is ignored.
+# Alerts that consume these metrics live in
+# apps/kube-prometheus-stack/cert-expiry-rules.yaml.
+prometheus:
+  servicemonitor:
+    enabled: true
+    labels:
+      release: kube-prometheus-stack
