@@ -14,10 +14,11 @@ spec:
     - name: eg-public
       namespace: envoy-gateway-system
   # No sectionName: the hostname below matches exactly one HTTPS listener on
-  # that Gateway (radicle-6j0-org), and the catch-all :80 listener only accepts
-  # routes from the Gateway's own namespace, so there is nothing else to bind
-  # to. Contrast tcproute.yaml, where a TCP listener carries no hostname to
-  # disambiguate with and sectionName is mandatory.
+  # that Gateway (`https`, the *.6j0.org wildcard), and the catch-all :80
+  # listener only accepts routes from the Gateway's own namespace, so there is
+  # nothing else to bind to. Contrast tcproute.yaml, where a TCP listener
+  # carries no hostname to disambiguate with and sectionName is mandatory --
+  # that one still pins sectionName: radicle.
   hostnames:
     - radicle.6j0.org
   rules:
