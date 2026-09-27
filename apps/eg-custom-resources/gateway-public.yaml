@@ -17,12 +17,15 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  annotations:
-    # cert-manager's gateway-shim watches this annotation and creates one
-    # Certificate per HTTPS listener below, named after its certificateRefs
-    # Secret. Without it no Certificate exists and nothing renews the
-    # *-tls Secrets -- they just expire.
-    cert-manager.io/cluster-issuer: letsencrypt
+  # NOTE: no cert-manager.io/cluster-issuer annotation. It used to drive
+  # cert-manager's gateway-shim, which creates one Certificate per HTTPS
+  # listener named after its certificateRefs Secret -- eleven of them here.
+  # This Gateway now uses the single explicit wildcard Certificate in
+  # certificate-wildcard.yaml, and with the annotation still present the shim
+  # and that Certificate would both try to manage wildcard-6j0-org-tls.
+  #
+  # Removing it also garbage-collects the eleven old per-hostname Certificates,
+  # which were owned by this Gateway. Their *-tls Secrets linger but are unused.
   name: eg-public
 spec:
   gatewayClassName: eg
@@ -62,205 +65,96 @@ spec:
         namespaces:
           from: All
 
-    # HTTPS listener for immich.6j0.org
-    - name: immich-6j0-org
-      hostname: "immich.6j0.org"
+
+    # ONE wildcard HTTPS listener, replacing the eleven per-hostname listeners
+    # that used to be here: immich, radicale, copyparty, seafile, nextcloud,
+    # timetracker, peertube, hatsmith, radicle, wiki, gathio. All eleven were
+    # byte-identical apart from hostname and cert name, and every one is a
+    # single label, so *.6j0.org covers the lot. Adding a public app is now
+    # just an HTTPRoute.
+    #
+    # The point is not brevity. Under DNS-01 each of those hostnames would have
+    # needed its own acme-dns registration and its own _acme-challenge CNAME at
+    # renewal, because acme-dns keys accounts by validated domain -- eleven
+    # registrations to create and keep straight. A wildcard is validated at its
+    # base domain, so this needs exactly one, keyed "6j0.org".
+    #
+    # *.6j0.org matches exactly one label: not the apex (see below), and not
+    # deeper names like s3.garage.6j0.org.
+    - name: https
+      hostname: "*.6j0.org"
       protocol: HTTPS
       port: 443
       tls:
         mode: Terminate
         certificateRefs:
           - kind: Secret
-            name: immich-6j0-org-tls
+            name: wildcard-6j0-org-tls
       allowedRoutes:
         namespaces:
           from: All
 
-    # HTTPS listener for radicale.6j0.org (individual cert via HTTP01)
-    - name: radicale-6j0-org
-      hostname: "radicale.6j0.org"
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: radicale-6j0-org-tls
-      allowedRoutes:
-        namespaces:
-          from: All
-
-    # HTTPS listener for copyparty.6j0.org
-    - name: copyparty-6j0-org
-      hostname: "copyparty.6j0.org"
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: copyparty-6j0-org-tls
-      allowedRoutes:
-        namespaces:
-          from: All
-
-    # HTTPS listeners for garage subdomains
-    - name: s3-garage-6j0-org
-      hostname: "s3.garage.6j0.org"
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: eg-s3-garage-6j0-org-tls
-      allowedRoutes:
-        namespaces:
-          from: All
-
-    - name: wildcard-s3-garage-6j0-org
-      hostname: "*.s3.garage.6j0.org"
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: eg-wildcard-s3-garage-6j0-org-tls
-      allowedRoutes:
-        namespaces:
-          from: All
-
-    - name: wildcard-web-garage-6j0-org
-      hostname: "*.web.garage.6j0.org"
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: eg-wildcard-web-garage-6j0-org-tls
-      allowedRoutes:
-        namespaces:
-          from: All
+    # radicle.6j0.org is served here for git-over-HTTPS (the radicle-httpd
+    # sidecar in apps/radicle), while peers dial the `radicle` TCP listener
+    # above on 8776 for the p2p protocol. One name, two protocols; the DNS
+    # record already exists because the TCPRoute's external-dns annotation
+    # created it.
 
     # Apex 6j0.org is NOT covered by *.6j0.org. Add a listener if/when needed.
     # - name: apex-6j0-org
     #   hostname: 6j0.org
     #   ...
 
-    # HTTPS listener for seafile.6j0.org (individual cert via HTTP01)
-    - name: seafile-6j0-org
-      hostname: "seafile.6j0.org"
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: seafile-6j0-org-tls
-      allowedRoutes:
-        namespaces:
-          from: All
-
-    # HTTPS listener for nextcloud.6j0.org (individual cert via HTTP01)
-    - name: nextcloud-6j0-org
-      hostname: "nextcloud.6j0.org"
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: nextcloud-6j0-org-tls
-      allowedRoutes:
-        namespaces:
-          from: All
-
-    # HTTPS listener for timetracker.6j0.org
-    - name: timetracker-6j0-org
-      hostname: "timetracker.6j0.org"
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: timetracker-6j0-org-tls
-      allowedRoutes:
-        namespaces:
-          from: All
-
-    # HTTPS listener for peertube.6j0.org
-    - name: peertube-6j0-org
-      hostname: "peertube.6j0.org"
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: peertube-6j0-org-tls
-      allowedRoutes:
-        namespaces:
-          from: All
-
-    # HTTPS listener for hatsmith.6j0.org
-    - name: hatsmith-6j0-org
-      hostname: "hatsmith.6j0.org"
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: hatsmith-6j0-org-tls
-      allowedRoutes:
-        namespaces:
-          from: All
-
-    # HTTPS listener for radicle.6j0.org -- git-over-HTTPS from the
-    # radicle-httpd sidecar in apps/radicle. Same hostname as the `radicle` TCP
-    # listener above: peers dial it on 8776 for the p2p protocol, git clients
-    # hit 443 for `git clone https://radicle.6j0.org/<repo>.git`. One name, two
-    # protocols, and the DNS record already exists because the TCPRoute's
-    # external-dns annotation created it.
-    - name: radicle-6j0-org
-      hostname: "radicle.6j0.org"
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: radicle-6j0-org-tls
-      allowedRoutes:
-        namespaces:
-          from: All
-
-    - name: wiki-6j0-org
-      hostname: "wiki.6j0.org"
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: wiki-6j0-org-tls
-      allowedRoutes:
-        namespaces:
-          from: All
-
-    # HTTPS listener for gathio.6j0.org
-    - name: gathio-6j0-org
-      hostname: "gathio.6j0.org"
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: gathio-6j0-org-tls
-      allowedRoutes:
-        namespaces:
-          from: All
+    # Garage's three listeners are commented out rather than repointed, because
+    # the wildcard cannot reach them: s3.garage.6j0.org is two labels deep, and
+    # *.s3.garage.6j0.org / *.web.garage.6j0.org are wildcards in their own
+    # right. Each would need a separate acme-dns registration and CNAME.
+    #
+    # garage is not deployed -- it is commented out of
+    # flux/flux-system/kustomization.yaml -- and all three listeners had zero
+    # attached routes. The two wildcard certs had also never issued at all,
+    # pending 41 days, because HTTP-01 cannot issue wildcards. Left in place
+    # with no registration they would now hold CertManagerCertNotReady
+    # (apps/kube-prometheus-stack/cert-expiry-rules.yaml) permanently firing.
+    #
+    # To bring garage back: uncomment these, add a Certificate per hostname
+    # beside certificate-wildcard.yaml, and register each validated domain --
+    # apps/acme-dns/README.md, "Adding a certificate later".
+    # - name: s3-garage-6j0-org
+    #   hostname: "s3.garage.6j0.org"
+    #   protocol: HTTPS
+    #   port: 443
+    #   tls:
+    #     mode: Terminate
+    #     certificateRefs:
+    #       - kind: Secret
+    #         name: eg-s3-garage-6j0-org-tls
+    #   allowedRoutes:
+    #     namespaces:
+    #       from: All
+    #
+    # - name: wildcard-s3-garage-6j0-org
+    #   hostname: "*.s3.garage.6j0.org"
+    #   protocol: HTTPS
+    #   port: 443
+    #   tls:
+    #     mode: Terminate
+    #     certificateRefs:
+    #       - kind: Secret
+    #         name: eg-wildcard-s3-garage-6j0-org-tls
+    #   allowedRoutes:
+    #     namespaces:
+    #       from: All
+    #
+    # - name: wildcard-web-garage-6j0-org
+    #   hostname: "*.web.garage.6j0.org"
+    #   protocol: HTTPS
+    #   port: 443
+    #   tls:
+    #     mode: Terminate
+    #     certificateRefs:
+    #       - kind: Secret
+    #         name: eg-wildcard-web-garage-6j0-org-tls
+    #   allowedRoutes:
+    #     namespaces:
+    #       from: All
