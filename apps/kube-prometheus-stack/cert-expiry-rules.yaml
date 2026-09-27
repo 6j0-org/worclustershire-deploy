@@ -46,9 +46,20 @@ spec:
 
         # Backstop in case the Ready alert is missed or silenced. Fires with a
         # week left, i.e. 8 days after renewal should have started.
+        # The `> 0` guard is load-bearing. A Certificate that has NEVER issued
+        # exports expiration_timestamp_seconds = 0, so without it `0 - time()`
+        # is hugely negative and this fires -- reporting a cert that never
+        # existed as one about to expire. Those are caught by
+        # CertManagerCertNotReady instead, which is the accurate name for them.
+        #
+        # Operand order matters: the comparison must be the LEFT side of `and`
+        # so $value stays the remaining-seconds delta. Putting `> 0` first makes
+        # $value the absolute expiry timestamp, which humanizeDuration renders
+        # as a nonsense duration.
         - alert: CertManagerCertExpiringSoon
           expr: |
             certmanager_certificate_expiration_timestamp_seconds - time() < 7 * 24 * 3600
+              and certmanager_certificate_expiration_timestamp_seconds > 0
           for: 1h
           labels:
             severity: warning
@@ -62,9 +73,12 @@ spec:
         # Expiry is the hard failure: the Envoy Gateway listener holding this
         # Secret goes Programmed=False and stops serving :443 entirely, which
         # presents as connection-refused rather than a TLS warning.
+        # Same `> 0` guard as above -- a never-issued Certificate is not an
+        # expired one.
         - alert: CertManagerCertExpired
           expr: |
             certmanager_certificate_expiration_timestamp_seconds - time() <= 0
+              and certmanager_certificate_expiration_timestamp_seconds > 0
           for: 5m
           labels:
             severity: critical
