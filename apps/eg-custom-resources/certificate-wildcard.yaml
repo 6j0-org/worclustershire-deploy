@@ -1,0 +1,25 @@
+# One certificate covering every single-label host under 6j0.org.
+#
+# This replaces the per-hostname Certificates that cert-manager's gateway-shim
+# used to create from the cert-manager.io/cluster-issuer annotation on
+# eg-private. That annotation is gone (see gateway-private.yaml): the shim and
+# an explicit Certificate would otherwise both manage secretName below.
+#
+# Wildcards can only be issued over DNS-01, which is what the `letsencrypt`
+# ClusterIssuer now solves with (apps/cert-manager-custom-resources).
+#
+# SCOPE: *.6j0.org matches exactly one label. It covers grafana, longhorn,
+# prometheus and alertmanager .6j0.org. It does NOT cover the apex 6j0.org,
+# nor deeper names like *.s3.garage.6j0.org -- each of those needs its own
+# Certificate and its own acme-dns registration + CNAME.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-6j0-org
+spec:
+  secretName: wildcard-6j0-org-tls # pragma: allowlist secret
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt
+  dnsNames:
+    - "*.6j0.org"

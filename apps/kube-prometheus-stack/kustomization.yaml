@@ -13,6 +13,7 @@ resources:
   - ocirepo.yaml
   - release.yaml
   - grafana-httproute.yaml
+  - cert-expiry-rules.yaml
 configMapGenerator:
   - name: kube-prometheus-stack-values
     files:
