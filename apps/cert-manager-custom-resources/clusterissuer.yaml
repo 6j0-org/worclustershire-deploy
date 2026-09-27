@@ -26,21 +26,68 @@ spec:
     privateKeySecretRef:
       name: tls.key
 
+    # ONE solver, DNS-01, for every certificate in the cluster.
+    #
+    # HTTP-01 used to be the only solver here, and it cannot work for two
+    # classes of certificate this cluster needs:
+    #
+    #   - Anything on the eg-private Gateway. Those hostnames resolve to a
+    #     MetalLB RFC1918 address, and Let's Encrypt rejects the authorization
+    #     with "no valid A records found" -- it never reaches the :80 solver.
+    #   - Any wildcard. Wildcards are DNS-01 only, which is why the
+    #     *.s3.garage.6j0.org and *.web.garage.6j0.org certificates had never
+    #     issued at all.
+    #
+    # Validation is delegated with acme-dns: _acme-challenge.<domain> is a
+    # static CNAME into an acme-dns server, and cert-manager writes the TXT
+    # record there over acme-dns's HTTP API. The zone itself can live at any
+    # DNS host -- no provider API token is involved, and the credential can
+    # only ever write that one delegated label.
+    #
+    # Each validated domain needs its own key in the account JSON and its own
+    # _acme-challenge CNAME. A wildcard is validated at its base domain, so
+    # *.6j0.org needs exactly one entry, keyed "6j0.org". Prefer one wildcard
+    # over many per-host certificates: acme-dns stores at most 2 TXT values per
+    # credential, so 3+ per-host certificates renewing at once through one
+    # credential will clobber each other's challenges.
+    # https://cert-manager.io/docs/configuration/acme/dns01/acme-dns/
     solvers:
 
-      # Use this for envoy gateway
-      # https://gateway.envoyproxy.io/docs/tasks/security/tls-cert-manager/#using-the-acme-issuer-with-lets-encrypt-and-http-01
-      # - http01:
-      #     gatewayHTTPRoute:
-      #       parentRefs:
-      #       - kind: Gateway
-      #         name: eg-public
-      #         namespace: envoy-gateway-system
+      - dns01:
+          acmeDNS:
+            # acme-dns runs IN this cluster (apps/acme-dns). Reached over the
+            # ClusterIP on plain HTTP, which keeps the credential off the wire
+            # outside the pod network and avoids a bootstrap loop -- acme-dns
+            # must not need a certificate that acme-dns is required to issue.
+            #
+            # In-cluster was a deliberate choice, not the obvious one. The
+            # objection was that acme-dns is itself a nameserver and so needs
+            # inbound UDP/53 from the internet, which this residential Comcast
+            # line might well block. That was measured on 2026-09-26 rather
+            # than assumed: with a throwaway delegation, Google's
+            # (172.253.223.214) and Cloudflare's (104.22.106.113) resolvers
+            # both reached a probe in this cluster over UDP/53 through the NAT.
+            # It works.
+            #
+            # The residual risk is not availability -- certificates renew at
+            # 1/3 of remaining lifetime, so a cluster outage has ~15 days of
+            # slack on these 45-day certs. It is that the NS A record points at
+            # a DYNAMIC address (see apps/acme-dns/config.yaml). If it changes,
+            # renewals fail silently. That is why the alerts in
+            # apps/kube-prometheus-stack/cert-expiry-rules.yaml exist; without
+            # them this exact failure went unnoticed for a month.
+            host: http://acme-dns-api.acme-dns.svc:8080
+            accountSecretRef:
+              name: acme-dns-account
+              key: acmedns.json
 
-      # Gateway HTTP01 solver
+      # Gateway HTTP01 solver. Superseded by the DNS-01 solver above; kept for
+      # reference. Do not re-enable it alongside DNS-01 without a `selector` on
+      # one of them -- with two unselected solvers, which one runs depends on
+      # selector precedence and a misroute only surfaces at renewal time.
       # https://cert-manager.io/docs/usage/gateway/#example-self-service-tls-with-listenerset-and-http-01
-      - http01:
-          gatewayHTTPRoute: {}
+      # - http01:
+      #     gatewayHTTPRoute: {}
 
       # Cloudflare
       # - dns01:

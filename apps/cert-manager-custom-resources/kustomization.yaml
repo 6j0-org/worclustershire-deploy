@@ -8,3 +8,8 @@ resources:
   # - cloudflare-apikey-secret.secrets.yaml
   # - porkbun-secret.secrets.yaml
   - clusterissuer.yaml
+
+  # Uncomment once you have filled in acme-dns-account.secrets.yaml.decrypted
+  # and run ./encrypt_secrets.sh. Until then the file does not exist and
+  # listing it here makes this whole Kustomization fail to build.
+  # - acme-dns-account.secrets.yaml

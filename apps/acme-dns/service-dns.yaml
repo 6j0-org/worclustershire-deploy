@@ -1,0 +1,33 @@
+# The authoritative DNS listener. This is the ONLY part of acme-dns exposed
+# outside the cluster, and it has to be: Let's Encrypt's recursive resolvers
+# query it directly when following the _acme-challenge CNAME.
+#
+# The IP is pinned because a firewall rule on the router forwards
+# 76.88.105.61:53 (UDP and TCP) here. MetalLB would otherwise be free to pick a
+# different address from first-pool on recreate, silently breaking the forward.
+#
+# TCP as well as UDP is required: resolvers retry over TCP when a response is
+# truncated, and verified reachable on both during the 2026-09-26 test.
+apiVersion: v1
+kind: Service
+metadata:
+  name: acme-dns
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: 192.168.8.13
+spec:
+  type: LoadBalancer
+  # Preserves the real client IP. Needed if acme-dns `allowfrom` is ever used
+  # to restrict updates, and it makes the logs show which resolver queried --
+  # without it every source appears as a node address.
+  externalTrafficPolicy: Local
+  selector:
+    app: acme-dns
+  ports:
+    - name: dns-udp
+      port: 53
+      targetPort: dns-udp
+      protocol: UDP
+    - name: dns-tcp
+      port: 53
+      targetPort: dns-tcp
+      protocol: TCP

@@ -1,0 +1,92 @@
+# Alerts on cert-manager certificates. These exist because longhorn-6j0-org-tls
+# and grafana-6j0-org-tls failed renewal 29 times across a month and nobody
+# knew until the Longhorn UI stopped answering on :443. Renewal failure is
+# silent by default: the old certificate keeps working right up to expiry.
+#
+# The `release: kube-prometheus-stack` label is load-bearing -- this cluster's
+# Prometheus has spec.ruleSelector matchLabels release=kube-prometheus-stack, so
+# a PrometheusRule without it is silently ignored. spec.ruleNamespaceSelector is
+# empty (all namespaces), so living in this namespace is fine.
+#
+# These metrics only exist because apps/cert-manager/values.yaml enables
+# prometheus.servicemonitor. Without that the rules below never fire -- see
+# CertManagerMetricsAbsent, which catches exactly that regression.
+#
+# Timing note: certificates here are 45 days, not 90, because the letsencrypt
+# ClusterIssuer sets profile: tlsserver. cert-manager renews at 1/3 remaining,
+# so renewal begins ~15 days out. The thresholds below are chosen against that
+# 15-day window, not the usual 30.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cert-expiry
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: cert-manager-certificates
+      rules:
+        # The earliest useful signal. A Certificate drops out of Ready as soon
+        # as an issuance or renewal attempt fails, which for longhorn would
+        # have fired on 2026-08-21 -- 15 days before anything broke.
+        - alert: CertManagerCertNotReady
+          expr: |
+            certmanager_certificate_ready_status{condition="True"} == 0
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} is not Ready"
+            description: >-
+              cert-manager reports {{ $labels.namespace }}/{{ $labels.name }} as not Ready
+              for over an hour. Renewal is probably failing while the existing certificate
+              still serves, so nothing is visibly broken yet. Check:
+              kubectl describe certificate -n {{ $labels.namespace }} {{ $labels.name }}
+              and the Challenge/Order objects it owns.
+
+        # Backstop in case the Ready alert is missed or silenced. Fires with a
+        # week left, i.e. 8 days after renewal should have started.
+        - alert: CertManagerCertExpiringSoon
+          expr: |
+            certmanager_certificate_expiration_timestamp_seconds - time() < 7 * 24 * 3600
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expires in under 7 days"
+            description: >-
+              {{ $labels.namespace }}/{{ $labels.name }} expires in
+              {{ $value | humanizeDuration }}. Renewal should have begun ~15 days out,
+              so this means renewal is failing.
+
+        # Expiry is the hard failure: the Envoy Gateway listener holding this
+        # Secret goes Programmed=False and stops serving :443 entirely, which
+        # presents as connection-refused rather than a TLS warning.
+        - alert: CertManagerCertExpired
+          expr: |
+            certmanager_certificate_expiration_timestamp_seconds - time() <= 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} has EXPIRED"
+            description: >-
+              {{ $labels.namespace }}/{{ $labels.name }} is expired. Any Gateway listener
+              referencing its Secret will refuse to program and will not serve :443 at all.
+
+        # Guards the monitoring itself. If the ServiceMonitor is removed or
+        # cert-manager stops exporting, every alert above goes quiet and looks
+        # like health.
+        - alert: CertManagerMetricsAbsent
+          expr: |
+            absent(certmanager_certificate_ready_status)
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "cert-manager certificate metrics are absent"
+            description: >-
+              No certmanager_certificate_ready_status samples for 30m. Prometheus has
+              probably lost the cert-manager ServiceMonitor
+              (apps/cert-manager/values.yaml -> prometheus.servicemonitor), so all
+              certificate alerting is blind.

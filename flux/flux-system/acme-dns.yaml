@@ -1,0 +1,23 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: acme-dns
+  namespace: flux-system
+spec:
+  # The SQLite database lives on a Longhorn PVC, so the storage layer must be
+  # up before the Deployment can become ready.
+  dependsOn:
+    - name: longhorn
+  interval: 10m0s
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: apps/acme-dns
+  prune: true
+  wait: true
+  timeout: 5m0s
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age
+  suspend: false

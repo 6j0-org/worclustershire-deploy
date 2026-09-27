@@ -1,0 +1,69 @@
+# acme-dns v2 configuration. Format notes that differ from the v1 examples
+# still floating around: `engine` is "sqlite" (not "sqlite3") and `port` under
+# [api] is a STRING.
+#
+# DELEGATION SHAPE. acme-dns is authoritative for auth.6j0.org only. The parent
+# zone (wherever 6j0.org is hosted) needs two records:
+#
+#     acme-ns.6j0.org.   A    76.88.105.61
+#     auth.6j0.org.      NS   acme-ns.6j0.org.
+#
+# The NS target deliberately sits OUTSIDE the delegated zone, so it resolves
+# from the parent normally and no glue record is required. This is the exact
+# shape verified against Google's and Cloudflare's resolvers on 2026-09-26
+# (they reached this cluster over UDP/53 through the residential NAT), so it is
+# known to work rather than assumed.
+#
+# Then one CNAME per certificate, pointing at the subdomain that /register
+# hands back:
+#
+#     _acme-challenge.6j0.org.   CNAME   <subdomain>.auth.6j0.org.
+#
+# THE FRAGILE PART is the A record above: 76.88.105.61 is a dynamic Comcast
+# address. If it changes, renewals fail silently for ~15 days before a
+# certificate actually expires. That is what the alerts in
+# apps/kube-prometheus-stack/cert-expiry-rules.yaml are for.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: acme-dns-config
+data:
+  config.cfg: |
+    [general]
+    # 5353, not 53: the Service maps :53 -> :5353 so the container never needs
+    # to bind a privileged port.
+    listen = "0.0.0.0:5353"
+    protocol = "both"
+    domain = "auth.6j0.org"
+    nsname = "acme-ns.6j0.org"
+    # @ is substituted with . -- this is hostmaster@6j0.org
+    nsadmin = "hostmaster.6j0.org"
+    records = [
+        "auth.6j0.org. NS acme-ns.6j0.org.",
+    ]
+    debug = false
+
+    [database]
+    engine = "sqlite"
+    connection = "/var/lib/acme-dns/acme-dns.db"
+
+    [api]
+    ip = "0.0.0.0"
+    # The API is ClusterIP-only (see service-api.yaml), so the registration
+    # endpoint is not reachable from the internet and needs no TLS of its own.
+    # cert-manager talks to it in-cluster over plain HTTP, which also avoids a
+    # bootstrap loop: acme-dns must not need a certificate that acme-dns is
+    # itself required to issue.
+    disable_registration = false
+    port = "8080"
+    tls = "none"
+    corsorigins = [
+        "*"
+    ]
+    use_header = false
+    header_name = "X-Forwarded-For"
+
+    [logconfig]
+    loglevel = "info"
+    logtype = "stdout"
+    logformat = "text"

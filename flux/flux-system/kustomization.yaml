@@ -18,6 +18,7 @@ resources:
   - metallb.yaml
   - metallb-custom-resources.yaml
   - longhorn.yaml
+  - acme-dns.yaml # Authoritative DNS for auth.6j0.org; backs the cert-manager dns01 solver.
   - immich.yaml
   - cnpg.yaml
   # - metrics-server.yaml # Broken, see TODO in metrics-server dir.

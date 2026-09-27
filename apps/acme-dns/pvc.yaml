@@ -1,0 +1,16 @@
+# acme-dns keeps its registrations in SQLite. The database is small but it is
+# NOT disposable: each row ties a username/password to the subdomain that a
+# _acme-challenge CNAME points at. Lose it and every CNAME must be re-pointed.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: acme-dns-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # Encrypted-at-rest Longhorn class (the cluster default), since this volume
+  # holds credentials.
+  storageClassName: longhorn-crypto-global
+  resources:
+    requests:
+      storage: 1Gi
