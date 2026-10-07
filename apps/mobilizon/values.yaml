@@ -1,0 +1,110 @@
+# dyff between <(yq . <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1)) <(yq eval '. * load("values.yaml")' <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1))
+# vim -O <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1) values.yaml
+
+# Uploaded pictures live on disk at /var/lib/mobilizon/uploads, so this is a
+# StatefulSet with a PVC rather than a Deployment.
+workloadType: "StatefulSet"
+
+statefulSet:
+  volumeClaimTemplates:
+  - metadata:
+      name: uploads
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi
+
+replicaCount: 1
+
+image:
+  repository: kaihuri/mobilizon@sha256
+  tag: "95c201b39d7041678273ff6c4049deaec10c5a66824885b654a2662a4d4a52fa" # 5.2.4
+
+# The image runs as `nobody` by name. Pin the numeric IDs so runAsNonRoot can be
+# verified, and fsGroup so the Longhorn PVC is writable by that user.
+podSecurityContext:
+  runAsUser: 65534
+  runAsGroup: 65534
+  runAsNonRoot: true
+  fsGroup: 65534
+  fsGroupChangePolicy: OnRootMismatch
+
+service:
+  port: 4000
+
+httpRoute:
+  enabled: true
+  parentRefs:
+  - name: eg-public
+    namespace: envoy-gateway-system
+  hostnames:
+  - mobilizon.6j0.org
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+
+# Mobilizon reads all of its config from MOBILIZON_* env vars (config/docker.exs
+# upstream, baked into the image as /etc/mobilizon/config.exs). The sensitive
+# ones are envSecret in helm_secrets.yaml, plus the DB password below.
+envConfigMap:
+  MOBILIZON_INSTANCE_NAME: "Mobilizon"
+  MOBILIZON_INSTANCE_HOST: "mobilizon.6j0.org"
+  MOBILIZON_INSTANCE_PORT: "4000"
+  # No SMTP yet: Mobilizon will try localhost:25 and log failures. Set
+  # MOBILIZON_SMTP_* (credentials in helm_secrets.yaml) to enable mail.
+  MOBILIZON_INSTANCE_EMAIL: "noreply@mobilizon.6j0.org"
+  MOBILIZON_REPLY_EMAIL: "noreply@mobilizon.6j0.org"
+  # Closed until mail works -- self-registration needs email confirmation.
+  # Create accounts with mobilizon_ctl; see README.md.
+  MOBILIZON_INSTANCE_REGISTRATIONS_OPEN: "false"
+  MOBILIZON_DATABASE_HOST: "mobilizon-database-rw"
+  MOBILIZON_DATABASE_PORT: "5432"
+  MOBILIZON_DATABASE_DBNAME: "mobilizon"
+  MOBILIZON_DATABASE_USERNAME: "mobilizon"
+  MOBILIZON_DATABASE_SSL: "false"
+
+# Read straight from the CNPG owner secret, so the password exists in exactly
+# one file (db-owner.secrets.yaml).
+env:
+  - name: MOBILIZON_DATABASE_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: mobilizon-db-owner
+        key: password
+
+# The image pre-creates uploads/exports/{csv,pdf,ods}, but the PVC mounted over
+# uploads/ hides them, and only the CSV exporter mkdirs its own folder -- PDF and
+# ODS participant exports would fail. Recreate them, then hand off to the
+# image's entrypoint (wait for DB, migrate, start).
+command:
+  - /bin/sh
+  - -c
+  - mkdir -p /var/lib/mobilizon/uploads/exports/csv /var/lib/mobilizon/uploads/exports/pdf /var/lib/mobilizon/uploads/exports/ods && exec /docker-entrypoint.sh
+
+# Not listed under volumes: -- the volumeClaimTemplate supplies "uploads".
+volumeMounts:
+  - name: uploads
+    mountPath: "/var/lib/mobilizon/uploads"
+
+# The entrypoint waits for Postgres and runs every migration before the HTTP
+# listener comes up, which on a fresh database takes well over the chart's
+# default 30s startup budget. Allow 10 minutes.
+startupProbe:
+  httpGet:
+    path: /
+    port: http
+  periodSeconds: 10
+  failureThreshold: 60
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+
+resources: {}
