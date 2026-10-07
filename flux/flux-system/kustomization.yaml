@@ -37,6 +37,7 @@ resources:
   # - oxicloud.yaml
   - peertube.yaml
   - gathio.yaml # Ships its own MongoDB; see apps/gathio/README.md.
+  - mobilizon.yaml # CNPG with PostGIS; see apps/mobilizon/README.md.
 
   #  seafile ValueError: Invalid CACHE_PROVIDER: database
   # - seafile.yaml

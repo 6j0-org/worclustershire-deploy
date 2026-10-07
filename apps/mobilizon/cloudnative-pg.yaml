@@ -1,0 +1,38 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: mobilizon-database
+spec:
+  instances: 1
+
+  storage:
+    size: 1Gi
+
+  # Mobilizon needs PostGIS, which the default CNPG image lacks. "standard" is
+  # CNPG's PostGIS flavour with the common contrib extensions (pg_trgm,
+  # unaccent). Held at 17 rather than 18: upstream CI tests against 16.
+  imageName: ghcr.io/cloudnative-pg/postgis:17-3.6-standard-trixie
+
+  # Leave the `postgres` password NULL. pg_hba ends with `host all all all
+  # scram-sha-256` and the namespace has no NetworkPolicy, so a superuser password
+  # would be reachable from anywhere in the cluster; NULL makes that login
+  # impossible. Break-glass access is unaffected -- `kubectl exec` into the pod and
+  # `psql -U postgres` authenticates over the local socket via peer auth.
+  enableSuperuserAccess: false
+
+  bootstrap:
+    initdb:
+      database: mobilizon
+      owner: mobilizon
+      # Pins the owner password instead of letting CNPG generate one into a
+      # mobilizon-database-app secret that exists only in the cluster.
+      secret:
+        name: mobilizon-db-owner
+      # Mobilizon's first migration runs CREATE EXTENSION IF NOT EXISTS for all
+      # three. pg_trgm and unaccent are trusted, so the owner could create them
+      # itself, but postgis is not -- as a non-superuser that migration fails.
+      # postInitApplicationSQL runs as superuser, so create them all here.
+      postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS postgis;
+        - CREATE EXTENSION IF NOT EXISTS pg_trgm;
+        - CREATE EXTENSION IF NOT EXISTS unaccent;
