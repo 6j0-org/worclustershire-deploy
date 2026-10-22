@@ -1,5 +1,5 @@
-# dyff between <(yq . <(helm show values nextcloud-aio/nextcloud-aio-helm-chart --version 13.6.0)) <(yq eval '. * load("values.yaml")' <(helm show values nextcloud-aio/nextcloud-aio-helm-chart --version 13.6.0))
-# vim -O <(helm show values nextcloud-aio/nextcloud-aio-helm-chart --version 13.6.0) values.yaml
+# dyff between <(yq . <(helm show values nextcloud-aio/nextcloud-aio-helm-chart --version 14.4.1)) <(yq eval '. * load("values.yaml")' <(helm show values nextcloud-aio/nextcloud-aio-helm-chart --version 14.4.1))
+# vim -O <(helm show values nextcloud-aio/nextcloud-aio-helm-chart --version 14.4.1) values.yaml
 NC_DOMAIN: nextcloud.6j0.org
 TIMEZONE: America/Los_Angeles
 APACHE_PORT: 8443
@@ -10,3 +10,6 @@ NAMESPACE_DISABLED: "yes"
 DATABASE_STORAGE_SIZE: 10Gi
 NEXTCLOUD_STORAGE_SIZE: 10Gi
 NEXTCLOUD_DATA_STORAGE_SIZE: 100Gi
+# Chart 14.x dropped the default upload limit from 16G to 1G; keep the 16G this instance has always had. The two must stay in sync.
+NEXTCLOUD_UPLOAD_LIMIT: 16G
+APACHE_MAX_SIZE: "17179869184"
