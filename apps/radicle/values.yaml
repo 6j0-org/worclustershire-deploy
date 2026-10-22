@@ -30,7 +30,7 @@ image:
   #
   # TODO: Use an official image or file an issue to create one.
   repository: docker.io/dirk1980/radicle-seed-node
-  tag: latest@sha256:f2b36bdf0ec5ba3f3f172e1679f5c578b9f76d07505cfb5c77754f541f05c22f
+  tag: latest@sha256:37d8494888cf11ee4810eb421e96ecd588acef6fe6e5b766a591a0d86b45a242
 
 # radicle-node takes --config and --secret, but the `rad` CLI does not: it only
 # ever reads $RAD_HOME/config.json and $RAD_HOME/keys/, and refuses to run
@@ -54,7 +54,7 @@ initContainers:
   - name: seed-policies
     # Must match image: above -- the chart only templates that into the main
     # container, so the digest is spelled out twice and has to be bumped twice.
-    image: docker.io/dirk1980/radicle-seed-node@sha256:f2b36bdf0ec5ba3f3f172e1679f5c578b9f76d07505cfb5c77754f541f05c22f
+    image: docker.io/dirk1980/radicle-seed-node@sha256:37d8494888cf11ee4810eb421e96ecd588acef6fe6e5b766a591a0d86b45a242
     command:
       - /bin/sh
       - -euc

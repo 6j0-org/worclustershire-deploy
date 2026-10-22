@@ -54,7 +54,7 @@ spec:
               #
               # NOTE: this is the third place the digest appears. See
               # README.md -> "Upgrading".
-              image: docker.io/dirk1980/radicle-seed-node@sha256:78ccee526ad4b4f4d7c79c2323b032a7209858a48e1dc9c077272ff1660050e2
+              image: docker.io/dirk1980/radicle-seed-node@sha256:37d8494888cf11ee4810eb421e96ecd588acef6fe6e5b766a591a0d86b45a242
               # The image's CMD is radicle-node, so it has to be replaced. The
               # script is mounted executable and carries its own bash shebang.
               command:
