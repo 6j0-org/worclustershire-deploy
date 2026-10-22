@@ -25,6 +25,13 @@ spec:
     type: Kubernetes
     kubernetes:
       envoyDeployment:
+        # EG v1.9.2's built-in Envoy is still v1.39.1, which has CVE-2026-35189
+        # and GHSA-8vc2-jrm4-835w / GHSA-47vj-9r25-wv5j; the release notes say to
+        # override it to >= v1.39.3. Setting it here is the only override that
+        # takes effect, because an attached EnvoyProxy without mergeType replaces
+        # the Helm-generated default. Drop this once EG's default catches up.
+        container:
+          image: docker.io/envoyproxy/envoy:distroless-v1.39.4
         replicas: 3
         pod:
           topologySpreadConstraints:

@@ -1,5 +1,5 @@
-# dyff between <(yq . <(helm show values grafana/loki --version 7.3.0)) <(yq eval '. * load("values.yaml")' <(helm show values grafana/loki --version 7.3.0))
-# vim -O <(helm show values grafana/loki --version 7.3.0) values.yaml
+# dyff between <(yq . <(helm show values grafana/loki --version 7.5.0)) <(yq eval '. * load("values.yaml")' <(helm show values grafana/loki --version 7.5.0))
+# vim -O <(helm show values grafana/loki --version 7.5.0) values.yaml
 
 # Single-process Loki backed by S3-compatible object storage. This is the
 # simplest topology that still uses durable object storage (good for up to a
@@ -7,6 +7,11 @@
 deploymentMode: SingleBinary
 
 loki:
+  # Chart 7.5.0 (appVersion 3.6.16) still defaults the image to 3.6.11; pin the
+  # latest 3.6.x patch for its CVE fixes. Drop when the chart default catches up.
+  image:
+    tag: 3.6.19
+
   # Single tenant: clients don't need to send an X-Scope-OrgID header, and
   # Grafana can query without per-tenant config. Flip to true for multi-tenancy.
   auth_enabled: false

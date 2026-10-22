@@ -5,6 +5,13 @@ metadata:
   name: kube-prometheus-stack
 spec:
   interval: 10m
+  # Helm never upgrades CRDs shipped in a chart's crds/ directory, and Flux
+  # defaults upgrade.crds to Skip, so without this the CRDs stay at whatever
+  # version was first installed while the controller moves on.
+  install:
+    crds: CreateReplace
+  upgrade:
+    crds: CreateReplace
   valuesFrom:
     - kind: ConfigMap
       name: kube-prometheus-stack-values
