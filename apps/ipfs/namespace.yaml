@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ipfs
+  annotations:
+    # Flux must never prune this namespace -- it would take the repo PVC with
+    # it, and with it the node's peer identity (its key lives in the repo's
+    # config file). The content itself can be re-fetched; the PeerID cannot.
+    # See docs/prune.argdown.
+    kustomize.toolkit.fluxcd.io/prune: disabled

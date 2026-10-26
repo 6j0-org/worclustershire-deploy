@@ -45,3 +45,4 @@ resources:
 
   - radicle.yaml
   - wiki.yaml
+  - ipfs.yaml # Kubo serving site.6j0.org; see apps/ipfs/README.md.

@@ -65,6 +65,18 @@ spec:
         namespaces:
           from: All
 
+    # IPFS (libp2p) swarm for the Kubo node in apps/ipfs, which announces
+    # /dns4/site.6j0.org/tcp/4001. Passed through at L4 like radicle above:
+    # libp2p brings its own encryption (Noise/TLS), so there is nothing to
+    # terminate. Same EKS note applies -- a target group on 4001, health check
+    # unaffected.
+    - name: ipfs
+      protocol: TCP
+      port: 4001
+      allowedRoutes:
+        namespaces:
+          from: All
+
 
     # ONE wildcard HTTPS listener, replacing the eleven per-hostname listeners
     # that used to be here: immich, radicale, copyparty, seafile, nextcloud,

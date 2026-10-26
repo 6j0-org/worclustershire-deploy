@@ -1,0 +1,18 @@
+# The Kubo repo: blockstore, datastore and config. The blocks are replaceable
+# (re-pinned from the network), but config holds the node's private key, so
+# losing this volume changes the PeerID other nodes know us by.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kubo-repo
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # Encrypted-at-rest Longhorn class (the cluster default), since this volume
+  # holds the node's identity key.
+  storageClassName: longhorn-crypto-global
+  resources:
+    requests:
+      # Datastore.StorageMax (kubo-init.sh) is 8GB, leaving headroom for the
+      # datastore's own overhead. Raise both together for a bigger site.
+      storage: 10Gi
