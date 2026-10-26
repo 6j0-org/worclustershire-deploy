@@ -1,0 +1,122 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubo
+spec:
+  # One replica, and Recreate rather than RollingUpdate: the repo lives on a
+  # ReadWriteOnce volume and Kubo holds a lock on it, so two pods cannot share
+  # it and a rolling update would deadlock waiting to attach.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: kubo
+  template:
+    metadata:
+      labels:
+        app: kubo
+    spec:
+      securityContext:
+        # The image's ipfs user. Starting as it directly (rather than as root)
+        # makes start_ipfs skip its gosu/chown step.
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        # Makes the Longhorn volume group-writable for the repo.
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: kubo
+          # v0.43.1, multi-arch index digest.
+          image: docker.io/ipfs/kubo:v0.43.1@sha256:b293923d66e490e70ced64df42ea7a6cf7eac2740e3fb29101df18070fa7be48
+          # The image's default CMD plus --enable-gc, so blocks of an unpinned
+          # old site version are reclaimed.
+          args: ["daemon", "--migrate=true", "--agent-version-suffix=docker", "--enable-gc"]
+          env:
+            # Profile applied on first init only: no mDNS, and no announcing
+            # private (pod) addresses.
+            - name: IPFS_PROFILE
+              value: server
+            # Go doesn't see the container's memory limit; start collecting
+            # garbage well before the OOM killer would.
+            - name: GOMEMLIMIT
+              value: 800MiB
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: swarm
+              containerPort: 4001
+              protocol: TCP
+            - name: gateway
+              containerPort: 8080
+              protocol: TCP
+          # bafkqaaa is the empty identity CID: its content is inside the CID
+          # itself, so it serves without the repo holding anything and without
+          # touching the network -- a pure "is the gateway serving" check.
+          readinessProbe:
+            httpGet:
+              path: /ipfs/bafkqaaa
+              port: gateway
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ipfs/bafkqaaa
+              port: gateway
+            # First boot runs init and possibly a repo migration.
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: repo
+              mountPath: /data/ipfs
+            - name: init
+              mountPath: /container-init.d
+              readOnly: true
+
+        - name: pin-site
+          # Same image, used only for the ipfs CLI as an RPC client.
+          image: docker.io/ipfs/kubo:v0.43.1@sha256:b293923d66e490e70ced64df42ea7a6cf7eac2740e3fb29101df18070fa7be48
+          command: ["/bin/sh", "/scripts/pin-site.sh"]
+          envFrom:
+            # CID from site.env. The generated name carries a content hash, so
+            # a new CID rolls the pod.
+            - configMapRef:
+                name: site
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: repo
+          persistentVolumeClaim:
+            claimName: kubo-repo
+        - name: init
+          configMap:
+            name: kubo-init
+            # start_ipfs executes init scripts that are executable and sources
+            # the rest; executing keeps its `set -e` from leaking into
+            # start_ipfs.
+            defaultMode: 0555
+        - name: scripts
+          configMap:
+            name: kubo-scripts

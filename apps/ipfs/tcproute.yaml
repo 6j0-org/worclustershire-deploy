@@ -1,0 +1,28 @@
+# https://gateway-api.sigs.k8s.io/api-types/tcproute/
+# Inbound libp2p connections. Kubo announces /dns4/site.6j0.org/tcp/4001
+# (kubo-init.sh); that name resolves to the eg-public Gateway, and this route
+# claims its `ipfs` TCP listener and forwards the stream to the pod. Without
+# it the node can still dial out, but peers behind NAT -- and public gateways
+# looking for the site -- often cannot reach us.
+#
+# TCP only. Kubo also listens on UDP 4001 (QUIC, WebTransport, WebRTC), which
+# would need a UDPRoute and a UDP listener; those transports still work
+# outbound.
+#
+# v1, not v1alpha2 as in apps/radicle/tcproute.yaml: the installed Gateway API
+# CRDs serve and store TCPRoute at v1 and warn that v1alpha2 is deprecated.
+apiVersion: gateway.networking.k8s.io/v1
+kind: TCPRoute
+metadata:
+  name: kubo-swarm
+spec:
+  parentRefs:
+    - name: eg-public
+      namespace: envoy-gateway-system
+      # Must match the listener name in
+      # apps/eg-custom-resources/gateway-public.yaml.
+      sectionName: ipfs
+  rules:
+    - backendRefs:
+        - name: kubo
+          port: 4001

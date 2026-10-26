@@ -1,0 +1,20 @@
+# ClusterIP only. Both ports are reached from outside through the eg-public
+# Gateway: the gateway port via httproute.yaml (HTTPS), the swarm port via
+# tcproute.yaml. The RPC API (5001) is deliberately absent -- see kubo-init.sh.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubo
+spec:
+  type: ClusterIP
+  selector:
+    app: kubo
+  ports:
+    - name: gateway
+      port: 8080
+      targetPort: gateway
+      protocol: TCP
+    - name: swarm
+      port: 4001
+      targetPort: swarm
+      protocol: TCP

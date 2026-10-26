@@ -1,0 +1,47 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Setting namespace here will ensure that all objects managed by this Kustomization will explicitly be deployed to this namespace. You don't need to put specify `namespace:` anywhere else if you do this.
+namespace: ipfs
+
+resources:
+  - namespace.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - httproute.yaml
+  - tcproute.yaml
+configMapGenerator:
+  # CID=... for the pin-site sidecar (envFrom) and the replacements below.
+  - name: site
+    envs:
+      - site.env
+  # Both keep the content hash: their only references are in deployment.yaml,
+  # which kustomize rewrites, so editing either script rolls the pod.
+  - name: kubo-init
+    files:
+      - kubo-init.sh
+  - name: kubo-scripts
+    files:
+      - pin-site.sh
+
+# Copy the CID from site.env into the HTTPRoute, so site.env stays the only
+# place it is written. Each target value is a path like /ipfs/<CID>/, so the
+# delimiter options replace just the CID segment (index 2 after splitting on
+# "/": "", "ipfs", "<CID>", ...).
+replacements:
+  - source:
+      kind: ConfigMap
+      name: site
+      fieldPath: data.CID
+    targets:
+      - select:
+          kind: HTTPRoute
+          name: site
+        fieldPaths:
+          - spec.rules.0.filters.0.urlRewrite.path.replaceFullPath
+          - spec.rules.1.matches.0.path.value
+          - spec.rules.2.filters.0.urlRewrite.path.replacePrefixMatch
+        options:
+          delimiter: /
+          index: 2

@@ -1,0 +1,26 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: ipfs
+  namespace: flux-system
+spec:
+  # tcproute.yaml needs the TCPRoute CRD (from the eg HelmRelease) and the
+  # eg-public Gateway with its `ipfs` 4001 listener. eg-custom-resources
+  # dependsOn eg and has wait: true, so this covers both. The repo lives on a
+  # Longhorn PVC, so storage must be up before the Deployment can be ready.
+  dependsOn:
+    - name: eg-custom-resources
+    - name: longhorn
+  interval: 10m0s
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: apps/ipfs
+  prune: true
+  wait: true
+  timeout: 5m0s
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age
+  suspend: false
