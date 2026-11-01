@@ -33,15 +33,15 @@ resources:
   # - radicale.yaml
   # - copyparty.yaml
   - nextcloud-aio.yaml
-  - timetracker.yaml
+  # - timetracker.yaml
   # - oxicloud.yaml
-  - peertube.yaml
+  # - peertube.yaml
   - gathio.yaml # Ships its own MongoDB; see apps/gathio/README.md.
-  - mobilizon.yaml # CNPG with PostGIS; see apps/mobilizon/README.md.
+  # - mobilizon.yaml # CNPG with PostGIS; see apps/mobilizon/README.md.
 
   #  seafile ValueError: Invalid CACHE_PROVIDER: database
   # - seafile.yaml
   # - seafile-mariadb.yaml
 
-  - radicle.yaml
-  - wiki.yaml
+  # - radicle.yaml
+  # - wiki.yaml
