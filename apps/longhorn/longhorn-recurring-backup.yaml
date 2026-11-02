@@ -10,7 +10,12 @@ kind: RecurringJob
 metadata:
   name: daily-backup
 spec:
-  cron: "0 2 * * *"
+  # 16:00 UTC (08:00 PST / 09:00 PDT). Longhorn cron is UTC. Finishes in ~20
+  # minutes, well before the weekly snapshot checksum in values.yaml
+  # (snapshotDataIntegrityCronjob), which must run after it: the backup's
+  # snapshot cleanup merges the previous snapshot into a new one, which
+  # discards that snapshot's checksum.
+  cron: "0 16 * * *"
   task: backup
   groups:
     - default
