@@ -13,6 +13,15 @@ defaultSettings:
 
   # Prevent bit rot
   snapshotDataIntegrity: enabled
+  # Weekly snapshot hashing, Saturdays 20:00 UTC (12:00 PST / 13:00 PDT), 4 hours after
+  # the daily backup (longhorn-recurring-backup.yaml) so its snapshot cleanup has
+  # finished. Besides bit-rot checks, checksums let fast replica rebuild skip
+  # unchanged snapshots: a node restart rebuilds the immich library in seconds
+  # instead of ~1 hour, until the next day's backup merges the snapshot away.
+  # Hashing takes 1-2 hours per node. Chart default: "0 0 */7 * *".
+  snapshotDataIntegrityCronjob:
+    v1: "0 20 * * 6"
+    v2: "0 20 * * 6"
 
 defaultBackupStore:
   # https://longhorn.io/docs/1.10.1/snapshots-and-backups/backup-and-restore/set-backup-target/#enable-virtual-hosted-style-access-for-s3-compatible-backupstore
