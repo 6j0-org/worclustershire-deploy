@@ -1,0 +1,159 @@
+# Scrape Karpenter — node/nodepool capacity gauges, provisioning and
+# disruption counters, cloudprovider error counters, controller-runtime
+# internals — from the chart's "karpenter" Service, port "http-metrics"
+# (:8080, standard /metrics, plain HTTP; verified by rendering chart 1.14.0,
+# apps/karpenter's pin). Mirrors the ServiceMonitor the chart's
+# serviceMonitor.enabled would create, which is unusable here for the
+# CRD-ownership reason in apps/cnpg/vm.yaml.
+#
+# A service scrape, not a pod scrape, on purpose: the job label defaults to
+# the Service name, and job="karpenter" is what the VMRule below's
+# upstream exprs and the vendored Karpenter Performance dashboard's
+# $controller variable filter on (a VMPodScrape would yield
+# job="victoria-metrics/karpenter", and those anchored matchers would go
+# dark).
+#
+# Ships with the app (listed in this app's kustomization.yaml), so it
+# applies exactly when Karpenter does — EKS only, via deploy.sh's app list.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: karpenter
+spec:
+  namespaceSelector:
+    matchNames:
+      # apps/karpenter deploys into kube-system (its kustomization.yaml),
+      # matching the Karpenter getting-started layout.
+      - kube-system
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: karpenter
+      app.kubernetes.io/instance: karpenter
+  endpoints:
+    - port: http-metrics
+---
+# Alerting rules for Karpenter, evaluated by this stack's vmalert over the
+# series collected by the scrape above. Synced with the karpenter group in
+# adinhodovic/kubernetes-autoscaling-mixin
+# (https://github.com/adinhodovic/kubernetes-autoscaling-mixin/blob/a94c0795e3acca4588d9da249320ddb881290d3b/prometheus_alerts.yaml,
+# the alerting companion to the community Karpenter dashboards; same author
+# as the envoy-mixin behind apps/eg/vm.yaml): every rule's expr, for,
+# severity, summary, and description is the mixin's, rendered with its
+# default config, so a re-sync is a diff against that file. One deviation:
+# - Dropped the mixin's dashboard_url annotations (they point at the
+#   mixin's own Karpenter dashboard uids on its grafana.com placeholder
+#   URL; this repo carries AWS's official Karpenter dashboards instead —
+#   see the karpenter entry under grafana.dashboards in
+#   apps/victoria-metrics/values.yaml).
+# KarpenterInstanceLaunchFailures, a home-grown rule (not in the mixin) on
+# karpenter_cloudprovider_instance_launch_failures_total, was removed: that
+# counter increments once per offering a CreateFleet call rejects, even
+# when the same call launches an instance, so it paged on routine spot
+# capacity misses. A launch that actually fails is a CloudProvider.Create
+# error, which KarpenterCloudProviderErrors catches (method="Create").
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: karpenter
+spec:
+  groups:
+    - name: karpenter
+      rules:
+        - alert: KarpenterCloudProviderErrors
+          annotations:
+            summary: Karpenter has Cloud Provider Errors.
+            description: >-
+              The Karpenter provider {{ $labels.provider }} with the
+              controller {{ $labels.controller }} has errors with the
+              method {{ $labels.method }}.
+          expr: |-
+            sum(
+              increase(
+                karpenter_cloudprovider_errors_total{
+                  job="karpenter",
+                  controller!~"nodeclaim.termination|node.termination",
+                  error!="NodeClaimNotFoundError"
+                }[5m]
+              )
+            ) by (cluster, namespace, job, provider, controller, method) > 0
+          for: 5m
+          labels:
+            severity: warning
+        - alert: KarpenterNodeClaimsTerminationDurationHigh
+          annotations:
+            summary: Karpenter Node Claims Termination Duration is High.
+            description: >-
+              The average node claim termination duration in Karpenter has
+              exceeded 20 minutes for more than 15 minutes in nodepool
+              {{ $labels.nodepool }}. This may indicate cloud provider
+              issues or improper instance termination handling.
+          expr: |-
+            sum(
+              rate(
+                karpenter_nodeclaims_termination_duration_seconds_sum{
+                  job="karpenter"
+                }[5m]
+              )
+            ) by (cluster, namespace, job, nodepool)
+            /
+            sum(
+              rate(
+                karpenter_nodeclaims_termination_duration_seconds_count{
+                  job="karpenter"
+                }[5m]
+              )
+            ) by (cluster, namespace, job, nodepool) > 1200
+          for: 15m
+          labels:
+            severity: warning
+        - alert: KarpenterNodepoolNearCapacity
+          annotations:
+            summary: Karpenter Nodepool near capacity.
+            description: >-
+              The resource {{ $labels.resource_type }} in the Karpenter node
+              pool {{ $labels.nodepool }} is nearing its limit. Consider
+              scaling or adding resources.
+          expr: |-
+            sum (
+              karpenter_nodepools_usage{job="karpenter"}
+            ) by (cluster, namespace, job, nodepool, resource_type)
+            /
+            sum (
+              karpenter_nodepools_limit{job="karpenter"}
+            ) by (cluster, namespace, job, nodepool, resource_type)
+            * 100 > 75
+          for: 15m
+          labels:
+            severity: warning
+        - alert: KarpenterClusterStateNotSynced
+          annotations:
+            summary: Karpenter Cluster State Not Synced.
+            description: >-
+              The Karpenter cluster state is not synced. This indicates
+              Karpenter cannot properly track cluster resources and may fail
+              to provision or deprovision nodes correctly.
+          expr: |-
+            sum(
+              karpenter_cluster_state_synced{
+                job="karpenter"
+              }
+            ) by (cluster, namespace, job) == 0
+          for: 15m
+          labels:
+            severity: warning
+        - alert: KarpenterSchedulerQueueDepthHigh
+          annotations:
+            summary: Karpenter Scheduler Queue Depth High.
+            description: >-
+              The Karpenter scheduler has {{ $value }} pods waiting to be
+              scheduled. This may indicate provisioning issues or
+              insufficient capacity.
+          expr: |-
+            sum(
+              karpenter_scheduler_queue_depth{
+                job="karpenter"
+              }
+            ) by (cluster, namespace, job) > 50
+          for: 15m
+          labels:
+            severity: warning

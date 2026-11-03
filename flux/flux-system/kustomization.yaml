@@ -23,9 +23,9 @@ resources:
   - cnpg.yaml
   # - metrics-server.yaml # Broken, see TODO in metrics-server dir.
   # - descheduler.yaml
-  - kube-prometheus-stack.yaml
-  - alloy.yaml
-  - loki.yaml
+  - victoria-metrics-crds.yaml
+  - victoria-metrics.yaml
+  - victoria-logs.yaml
   - eg.yaml
   - eg-custom-resources.yaml
   # - garage.yaml

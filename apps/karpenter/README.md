@@ -20,7 +20,7 @@ queue, `karpenter.sh/discovery` tags) lives in aws-eks-template
 - Look into encrypted root volumes for Karpenter-launched nodes. They
   currently get the AMI's default volume settings, while the blue node
   group's launch template (aws-eks-template `cluster/main.tf`) encrypts the
-  root volume with the customer-managed KMS key (`alias/eks/project1-dev/ebs`).
+  root volume with the customer-managed KMS key (`alias/eks/worclustershire/ebs`).
   Parity needs `blockDeviceMappings` with `kmsKeyID` in the EC2NodeClass
   (apps/karpenter-custom-resources) plus key-policy grants in aws-eks-template
   so instances launched by Karpenter (no ASG service-linked role involved) can

@@ -1,0 +1,724 @@
+# dyff between <(yq . <(helm show values victoria-metrics/victoria-metrics-k8s-stack --version 0.91.2)) <(yq eval '. * load("values.yaml")' <(helm show values victoria-metrics/victoria-metrics-k8s-stack --version 0.91.2))
+# vim -O <(helm show values victoria-metrics/victoria-metrics-k8s-stack --version 0.91.2) values.yaml
+
+# Without this the chart names every CR "victoria-metrics-victoria-metrics-k8s-stack"
+# (release + chart name), and the operator derives Service names from CR names,
+# giving DNS names like vmsingle-victoria-metrics-victoria-metrics-k8s-stack.
+# Other apps hardcode these URLs (otel-collector remote-writes to vmsingle), so
+# keep them short and stable: vmsingle-victoria-metrics, vmalertmanager-victoria-metrics, ...
+fullnameOverride: victoria-metrics
+
+# The VictoriaMetrics operator turns the VM* CRs below into running pods.
+victoria-metrics-operator:
+  operator:
+    # This is the chart default, pinned because it's load-bearing: the
+    # operator mirrors prometheus-operator objects (ServiceMonitor, PodMonitor,
+    # PrometheusRule, Probe, ScrapeConfig) into their VM equivalents, so
+    # charts written for prometheus-operator plug into this stack unchanged.
+    # Note the chart does NOT install the prometheus-operator CRDs themselves
+    # -- see README.md.
+    disable_prometheus_converter: false
+  # The CRDs come from apps/victoria-metrics-crds, which every app with VM
+  # objects depends on (this one included), so the chart installs none.
+  # Turning them off removes nothing from a running cluster: the stack's
+  # default (plain: true) installs them from the chart's crds/ directory,
+  # which Helm never upgrades or deletes, and victoria-metrics-crds takes
+  # ownership of them on install. The chart requires plain: false alongside
+  # enabled: false.
+  crds:
+    plain: false
+    enabled: false
+  # Initial guesses (resize with krr after 14d of usage); memory req=limit,
+  # no CPU limit.
+  resources:
+    requests:
+      cpu: 10m
+      memory: 128Mi
+    limits:
+      memory: 128Mi
+
+vmsingle:
+  spec:
+    # Keep 30 days of history (the chart default is "1", meaning one calendar
+    # month).
+    retentionPeriod: 30d
+    # The cluster is IPv6-only, and every VictoriaMetrics binary listens and
+    # dials tcp4-only unless this flag is set (lib/netutil hardcodes "tcp4"
+    # otherwise) -- without it the pod can't accept service traffic or pass
+    # probes, because the pod has no IPv4 address. Same flag on vmagent and
+    # vmalert below. Alertmanager, Grafana, and the exporters are ordinary
+    # dual-stack Go listeners and need nothing -- but the config-reloader
+    # sidecar the operator injects into the vmagent, vmalert, and alertmanager
+    # pods is a VictoriaMetrics binary too, so those three also pass the flag
+    # via configReloaderExtraArgs; without it the sidecar's :8435 health
+    # probes get connection refused and kubelet restarts it forever.
+    extraArgs:
+      enableTCP6: "true"
+    # Ships at the template's minimal 1Gi — volumes can grow but never
+    # shrink, so size up per deployment; as a guide, 30d on a small cluster
+    # fits comfortably in ~20Gi (VictoriaMetrics compresses to well under a
+    # byte per sample, roughly 7x denser than Prometheus's TSDB). There is no
+    # retentionSize equivalent to tune: when the disk does fill, vmsingle
+    # switches to read-only instead of crash-looping. No storageClassName, so
+    # the cluster's default StorageClass is used.
+    storage:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+    # Memory req=limit, no CPU limit. OOMKilled at 512Mi on 2026-08-26, right
+    # after the kubelet relabelConfigs fix below un-dropped the label-heavy
+    # cadvisor series — active series jumped for good, so doubled to 1Gi.
+    resources:
+      requests:
+        cpu: 50m
+        memory: 1Gi
+      limits:
+        memory: 1Gi
+    # vmsingle is a singleton: if a spot reclaim takes it down, ingestion and
+    # rule evaluation stop with it. Pin it to on-demand capacity, per the
+    # NodePool contract in apps/karpenter-custom-resources/nodepool.yaml.
+# >>> karpenter: deploy.sh uncomments this block when k8s_platform=eks
+#     nodeSelector:
+#       karpenter.sh/capacity-type: on-demand
+# <<< karpenter
+
+alertmanager:
+  spec:
+    # Public URL Alertmanager uses when generating links (e.g. the title link
+    # in Slack notifications); without it they point at the internal service
+    # URL http://vmalertmanager-victoria-metrics.victoria-metrics:9093.
+    externalURL: https://alertmanager.6j0.org
+
+    # See the IPv6-only note on vmsingle: the config-reloader sidecar needs
+    # the flag even though Alertmanager itself doesn't.
+    configReloaderExtraArgs:
+      enableTCP6: "true"
+
+    # Initial guesses (resize with krr after 14d of usage); memory req=limit,
+    # no CPU limit.
+    resources:
+      requests:
+        cpu: 10m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+
+    # Persist /alertmanager so silences and the notification log survive pod
+    # restarts (the operator defaults to an emptyDir). The data is only a few
+    # KB, but 1Gi is the practical floor: EBS won't provision smaller, and
+    # most other provisioners round up to it anyway. No storageClassName, so
+    # the cluster's default StorageClass is used.
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+    # Alertmanager is a singleton: if a spot reclaim takes it down, nothing
+    # pages -- including about the reclaim itself. Pin it to on-demand
+    # capacity, per the NodePool contract in
+    # apps/karpenter-custom-resources/nodepool.yaml. (Gossip clustering only
+    # starts at replicaCount > 1, so single-replica Alertmanager also sidesteps
+    # any memberlist-over-IPv6 concerns -- see the ring comments in
+    # apps/tempo/values.yaml.)
+# >>> karpenter: deploy.sh uncomments this block when k8s_platform=eks
+#     nodeSelector:
+#       karpenter.sh/capacity-type: on-demand
+# <<< karpenter
+
+# Alert routing. Only the default route receiver lives here: the route.routes
+# and receivers lists (Slack channel and message templates, Watchdog blackhole,
+# and the GoAlert webhook receiver) are in this app's helm_secrets.yaml -- edit
+# with `sops helm_secrets.yaml`. They are there because the GoAlert webhook URL
+# embeds an integration key (see apps/goalert/README.md), and Flux merges
+# valuesFrom like `helm -f`: maps deep-merge but lists are replaced wholesale,
+# so each list must live entirely in one file. Current routing: Watchdog and
+# InfoInhibitor are blackholed; every other alert goes to BOTH GoAlert
+# (paging) and Slack via
+# a single combined receiver (named "default") carrying both integrations --
+# one receiver, not one route per system, because the Alertmanager UI lists
+# each alert group once per receiver, so split receivers showed every alert
+# twice.
+# The receiver below is the mandatory root default and only fires if no
+# sub-route matches -- unreachable today, since helm_secrets.yaml's last
+# sub-route matches everything.
+#
+# group_by lives here, not on the sub-routes: children inherit it, and
+# grouping is not a secret, so it stays reviewable in this file rather than
+# behind sops. Without it, Alertmanager's default collapses every firing
+# alert into ONE group with no common labels, and GoAlert's Alertmanager
+# integration opens one alert per group -- so six unrelated alerts arrived
+# as a single GoAlert alert with nothing naming them, and a TargetDown page
+# never appeared under its own name (ENG-1613). alertname+namespace gives
+# one group per distinct problem, while still collapsing one alert that
+# fires across many pods into a single page. NOTE this also changes Slack:
+# it now gets a message per alertname+namespace instead of one digest
+# listing everything. Scoping group_by to paging only would mean splitting
+# the combined "default" receiver back into separate goalert and slack
+# routes/receivers in helm_secrets.yaml -- at the cost of the UI showing
+# every alert twice again (once per receiver).
+#
+# inhibit_rules implement the severity ladder the bundled alert rules assume
+# but the chart does not ship (its default values carry these rules only as a
+# commented-out example):
+# critical mutes warning+info for the same alertname+namespace, warning mutes
+# info likewise, and InfoInhibitor -- a bundled meta-alert that fires whenever
+# a severity=info alert is pending or firing in a namespace -- mutes every
+# info alert in its namespace. Net effect: info alerts never notify on their
+# own; when a warning/critical alert fires in the same namespace,
+# InfoInhibitor stops firing there (that's its expr) and the info alerts
+# un-mute to ride along as context. InfoInhibitor itself is blackholed in
+# helm_secrets.yaml's routes (muted alerts still work as inhibition sources).
+# Without these rules every info-severity blip pages GoAlert: a falcon-kac
+# pod replacement briefly fills its 2-pod ResourceQuota, KubeQuotaFullyUsed
+# (info) goes pending, and InfoInhibitor -- severity=none, no `for:` -- fired
+# through the catch-all route within seconds, twice in one day (2026-09-08).
+# The list lives here, not helm_secrets.yaml, because nothing in it is
+# secret (same reasoning as group_by above); it's a sibling of the
+# route.routes list, so the each-list-in-one-file rule is satisfied.
+# >>> slack: deploy.sh uncomments this block when slack_alerts=true (variables.sh)
+#   config:
+#     route:
+#       group_by: ["alertname", "namespace"]
+#       receiver: default
+#     inhibit_rules:
+#       - source_matchers:
+#           - severity = critical
+#         target_matchers:
+#           - severity =~ warning|info
+#         equal:
+#           - namespace
+#           - alertname
+#       - source_matchers:
+#           - severity = warning
+#         target_matchers:
+#           - severity = info
+#         equal:
+#           - namespace
+#           - alertname
+#       - source_matchers:
+#           - alertname = InfoInhibitor
+#         target_matchers:
+#           - severity = info
+#         equal:
+#           - namespace
+# <<< slack
+
+# Grafana sits behind a repo-managed HTTPRoute (grafana-httproute.yaml), not
+# the subchart's ingress, so the chart can't discover its public URL and
+# renders vmalert's -external.url as a bare "http://". vmalert embeds this URL
+# in every alert's "source" link (it deep-links into Grafana Explore).
+external:
+  grafana:
+    host: https://grafana.6j0.org
+
+vmalert:
+  spec:
+    # See the IPv6-only note on vmsingle, for both args.
+    extraArgs:
+      enableTCP6: "true"
+    configReloaderExtraArgs:
+      enableTCP6: "true"
+    # Initial guesses (resize with krr after 14d of usage); memory req=limit,
+    # no CPU limit.
+    resources:
+      requests:
+        cpu: 10m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+
+vmagent:
+  spec:
+    # See the IPv6-only note on vmsingle. enableTCP6 also covers dialing, which
+    # vmagent needs to scrape targets that only have IPv6 addresses. The
+    # config-reloader flag is per the IPv6-only note on vmsingle.
+    extraArgs:
+      enableTCP6: "true"
+    configReloaderExtraArgs:
+      enableTCP6: "true"
+    # Initial guesses (resize with krr after 14d of usage); memory req=limit,
+    # no CPU limit. vmagent memory grows with the number of scraped series, so
+    # expect to bump this first.
+    resources:
+      requests:
+        cpu: 25m
+        memory: 256Mi
+      limits:
+        memory: 256Mi
+
+# The chart auto-provisions the VictoriaMetrics (prometheus-type) datasource
+# pointing at the vmsingle service
+# (http://vmsingle-victoria-metrics.victoria-metrics.svc.cluster.local:8428),
+# plus an Alertmanager datasource, so neither needs wiring up here. The two
+# entries below point at the sibling apps/victoria-logs and apps/tempo apps.
+# They are `extra` datasources rather than external.vl/vt URLs on purpose:
+# setting external.vl.read.url would insert the chart's internal vmauth proxy
+# between vmalert and its datasource, one more moving part in the alerting
+# path for no benefit until we alert on logs.
+defaultDatasources:
+  extra:
+    - name: VictoriaLogs
+      type: victoriametrics-logs-datasource
+      uid: victorialogs
+      access: proxy
+      url: http://victoria-logs-server.victoria-logs.svc.cluster.local:9428
+      # Color log lines in Explore by level. severity_text is filled and
+      # lowercased by otel-collector's transform/severity processor (see
+      # apps/otel-collector/values.yaml); without these rules the plugin
+      # shows every line as "unknown". First matching rule wins. The numeric
+      # alternatives are pino's levels (60 fatal ... 10 trace).
+      jsonData:
+        logLevelRules:
+          - field: severity_text
+            operator: regex
+            value: "^(fatal|panic|critical|crit|emerg|alert|60)$"
+            level: critical
+          - field: severity_text
+            operator: regex
+            value: "^(error|err|50)$"
+            level: error
+          - field: severity_text
+            operator: regex
+            value: "^(warn|warning|40)$"
+            level: warning
+          - field: severity_text
+            operator: regex
+            value: "^(info|information|notice|30)$"
+            level: info
+          - field: severity_text
+            operator: regex
+            value: "^(debug|dbg|20)$"
+            level: debug
+          - field: severity_text
+            operator: regex
+            value: "^(trace|10)$"
+            level: trace
+    - name: Tempo
+      type: tempo
+      uid: tempo
+      access: proxy
+      url: http://tempo.tempo.svc.cluster.local:3200
+
+grafana:
+  # Grafana's dex OAuth client secret (the dex marker blocks below) arrives
+  # as the GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET env var from
+  # grafana-oidc-client.secrets.yaml — NOT as grafana.ini's client_secret:
+  # everything under grafana.ini is rendered into a world-readable ConfigMap,
+  # and the chart's assertNoLeakedSecrets check refuses a plaintext secret
+  # there. Grafana's env-var config override supplies the value instead.
+# >>> dex: NOT auto-enabled by deploy.sh — run ./toggle_blocks.sh --enable dex after deploying apps/dex
+#   envFromSecret: grafana-oidc-client-secret
+# <<< dex
+  grafana.ini:
+    server:
+      # Public URL Grafana uses when generating absolute links (e.g. Explore
+      # short links); without it they point at the default localhost:3000.
+      root_url: https://grafana.6j0.org/
+    # SSO through the optional dex app (apps/dex), via generic_oauth against
+    # the dex issuer. The login form deliberately stays enabled: the local
+    # admin account is break-glass for when dex or the upstream IdP is down.
+    # client_secret is NOT in grafana.ini — it arrives as an env var via
+    # envFromSecret above and must equal the grafana staticClient secret in
+    # apps/dex/helm_secrets.yaml. allow_sign_up admits anyone the connector
+    # does (e.g. hostedDomains); the role comes from role_attribute_path,
+    # which reads the groups claim — emitted only when the connector's
+    # groups support is configured (see apps/dex/helm_secrets.yaml) — and
+    # falls back to Viewer. Replace the placeholder group addresses.
+# >>> dex: NOT auto-enabled by deploy.sh — run ./toggle_blocks.sh --enable dex after deploying apps/dex
+#     auth.generic_oauth:
+#       enabled: true
+#       name: Dex
+#       client_id: grafana
+#       scopes: openid profile email groups
+#       auth_url: https://dex.6j0.org/auth
+#       token_url: https://dex.6j0.org/token
+#       api_url: https://dex.6j0.org/userinfo
+#       allow_sign_up: true
+#       role_attribute_path: contains(groups[*], 'grafana-admins@example.com') && 'Admin' || contains(groups[*], 'grafana-editors@example.com') && 'Editor' || 'Viewer'
+# <<< dex
+  # The VictoriaLogs datasource above and the "VictoriaMetrics (DS)"
+  # datasource the chart provisions by default are Grafana plugins, not
+  # built-in types. Grafana downloads them at startup, which needs egress to
+  # grafana.com/api (the dashboard/rule sync-job needs similar egress to
+  # raw.githubusercontent.com).
+  plugins:
+    - victoriametrics-logs-datasource
+    - victoriametrics-metrics-datasource
+  # Dashboards Grafana's download-dashboards init container pulls at every
+  # pod start — from grafana.com by dashboard id (same grafana.com/api egress
+  # as the plugins above) or from a raw.githubusercontent.com URL — so
+  # upstream updates arrive on the next restart instead of being vendored
+  # here and re-synced by hand. revision "latest" tracks the newest published
+  # revision (the chart would otherwise default to revision 1, not latest);
+  # the GitHub URLs either pin the tag matching the app's chart pin (bump the
+  # URL when bumping the app) or track the default branch where upstream tags
+  # nothing. A datasource list on an entry rewrites its ${DS_PROMETHEUS}
+  # placeholders at download time to the uid of the prometheus-type
+  # datasource the chart provisions (uid VictoriaMetrics) — dashboards
+  # packaged for grafana.com reference that placeholder from __inputs, which
+  # nothing resolves under file provisioning. Entries without placeholders
+  # bind through their own datasource template variable instead, which falls
+  # back to the stack's only prometheus-type datasource on load when its
+  # saved selection doesn't exist here. The provider tells Grafana to load
+  # whatever the init container drops in its path; the sidecar-provisioned
+  # ConfigMap dashboards (the envoy-*-dashboard.yaml files in this app, plus
+  # coraza's — hand-built, no upstream to download) use the chart's own
+  # provider, which reads the sidecar's folder — moved off
+  # /var/lib/grafana/dashboards under grafana.sidecar below, where it would
+  # hide this provider's path.
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: downloaded
+          orgId: 1
+          folder: ""
+          type: file
+          disableDeletion: false
+          editable: false
+          options:
+            path: /var/lib/grafana/dashboards/downloaded
+  # Entries for platform-conditional and opt-in apps sit in marker blocks,
+  # enabled with the app (their scrape/rule CRs ship inside the app itself,
+  # so those need no gating) — an undeployed app's dashboard is dead weight
+  # in the Grafana UI.
+  dashboards:
+    downloaded:
+      # "Flux Performance" — the flux-operator's own dashboard: per-resource
+      # readiness and reconcile durations (flux_resource_info and friends),
+      # controller CPU/memory/network, API-server load — fed by
+      # apps/victoria-metrics/flux-vm.yaml. The URL tracks main because
+      # deploy.sh installs the operator with self-update on, so a tag pin
+      # would drift from the running version.
+      flux-performance:
+        url: https://raw.githubusercontent.com/controlplaneio-fluxcd/flux-operator/main/config/monitoring/dashboards/flux-performance.json
+        datasource:
+          - name: DS_PROMETHEUS
+            value: VictoriaMetrics
+      # "Flux Control Plane" — controller-level detail: reconcile durations
+      # by kind, workqueue depth/latency, client-go request rates, controller
+      # memory — fed by apps/victoria-metrics/flux-vm.yaml. Overlaps Flux
+      # Performance on purpose: this one is the controllers' internals, that
+      # one the resources' state. Tracks main — the example repo publishes no
+      # tags. (Its cluster.json/logs.json siblings are deliberately not
+      # pulled: cluster.json needs kube-state-metrics custom-resource-state
+      # config this stack doesn't run, and logs.json is Loki-only — this
+      # stack ships VictoriaLogs.)
+      flux-control-plane:
+        url: https://raw.githubusercontent.com/fluxcd/flux2-monitoring-example/main/monitoring/configs/dashboards/control-plane.json
+        datasource:
+          - name: DS_PROMETHEUS
+            value: VictoriaMetrics
+      # "cert-manager" (grafana.com 20340) — certificate readiness and
+      # time-to-expiry by namespace/cert, ACME client request rates — fed by
+      # apps/cert-manager/vm.yaml (the "namespace" variable lists
+      # exported_namespace values, i.e. the Certificates' own namespaces; see
+      # the honorLabels note on the scrape). The current-era community
+      # dashboard: the older mixin dashboards query kube-state-metrics v1
+      # names that no longer exist.
+      cert-manager:
+        gnetId: 20340
+        revision: latest
+        datasource:
+          - name: DS_PROMETHEUS
+            value: VictoriaMetrics
+      # "External DNS" (grafana.com 23969) — record counts by
+      # source/registry, sync/error rates, last sync timestamps — fed by
+      # apps/external-dns/vm.yaml; the per-pod variable comes from
+      # kube_pod_info (kube-state-metrics, part of this stack). Deliberately
+      # NOT the far-more-downloaded 15038: that one predates external-dns
+      # 0.20's metric consolidation (its *_a_records/*_aaaa_records panels
+      # are empty on apps/external-dns's pin), and the two share a uid so
+      # only one can be provisioned.
+      external-dns:
+        gnetId: 23969
+        revision: latest
+      # "OpenTelemetry Collector" (grafana.com 15983) — receiver
+      # accepted/refused, processor throughput, exporter sent/failed/queue
+      # state, batch sizes, collector process health — fed by
+      # apps/otel-collector's vmservicescrape.yaml. Chosen precisely because
+      # its hidden suffix-detection variables handle BOTH otelcol metric
+      # spellings — that deployment emits the suffixed _total/_seconds names
+      # (see the naming gotcha in apps/otel-collector/vmrule.yaml). Known
+      # caveat: the rpc/http latency row is detailed-level telemetry that
+      # config doesn't emit (empty panels).
+      otel-collector:
+        gnetId: 15983
+        revision: latest
+      # "VictoriaLogs - single-node" (grafana.com 22084, the published copy
+      # of the dashboard in the VictoriaLogs repo) — ingestion rate/volume,
+      # disk usage vs free space, merge activity, query concurrency and
+      # latency — all Prometheus-type metrics about the VictoriaLogs process
+      # (scraped by that chart's own VMServiceScrape; see
+      # apps/victoria-logs/values.yaml), NOT LogsQL via the victorialogs
+      # datasource.
+      victoria-logs:
+        gnetId: 22084
+        revision: latest
+        datasource:
+          - name: DS_PROMETHEUS
+            value: VictoriaMetrics
+# >>> opencost: deploy.sh uncomments this block when k8s_platform=eks
+##       "OpenCost / Overview" (grafana.com 22208) -- cluster-wide cost
+##       metrics (hourly/monthly totals, cost by resource, instance type,
+##       namespace, node, and PV), fed by apps/opencost via the
+##       VMServiceScrape in
+##       apps/opencost/vm.yaml. Its hidden
+##       "cluster" variable resolves empty here (this stack stamps no
+##       `cluster` external label) and PromQL {cluster=""} matches series
+##       without the label, so every query works as-is.
+#       opencost-overview:
+#         gnetId: 22208
+#         revision: latest
+# <<< opencost
+# >>> karpenter: deploy.sh uncomments this block when k8s_platform=eks
+##       "Karpenter Capacity" / "Karpenter Performance" — AWS's official
+##       dashboards: node/nodepool allocatable vs usage by
+##       zone/arch/capacity-type, pod scheduling state, disruption activity;
+##       controller reconcile rates/latency, scheduling queue timing — fed
+##       by apps/karpenter/vm.yaml (its job="karpenter" is what the
+##       $controller variable filters on). The URL tag matches
+##       apps/karpenter's chart pin (chart version = karpenter version) —
+##       bump it when bumping the app. No placeholders to rewrite: the saved
+##       datasource selection (uid "prometheus") doesn't exist here and the
+##       datasource variable falls back to the stack's default on load.
+#       karpenter-capacity:
+#         url: https://raw.githubusercontent.com/aws/karpenter-provider-aws/v1.14.0/website/content/en/docs/getting-started/getting-started-with-karpenter/karpenter-capacity-dashboard.json
+#       karpenter-performance:
+#         url: https://raw.githubusercontent.com/aws/karpenter-provider-aws/v1.14.0/website/content/en/docs/getting-started/getting-started-with-karpenter/karpenter-performance-dashboard.json
+# <<< karpenter
+# >>> eks: deploy.sh uncomments this block when k8s_platform=eks
+##       "AWS Load Balancer Controller" (grafana.com 18319 — no official
+##       upstream dashboard exists) — reconcile rates/errors/latency,
+##       webhook requests, AWS API call rates/latency/retries — fed by
+##       apps/aws-load-balancer-controller/vm.yaml (whose jobLabel makes
+##       job="aws-load-balancer-controller", which the $job variable needs).
+##       Known gap: the upstream predates client-go's rename of
+##       rest_client_request_latency_seconds to
+##       rest_client_request_duration_seconds, so its two client-go latency
+##       panels stay empty — apps/aws-load-balancer-controller/vm.yaml alerts
+##       on the awslbc_* metrics directly instead. It also predates the
+##       awslbc_* subsystem, so reconcile-stage/readiness-gate detail isn't
+##       charted.
+#       aws-load-balancer-controller:
+#         gnetId: 18319
+#         revision: latest
+#         datasource:
+#           - name: DS_PROMETHEUS
+#             value: VictoriaMetrics
+# <<< eks
+# >>> metallb: deploy.sh uncomments this block when k8s_platform is not eks
+##       "Metallb" (grafana.com 20162, community-maintained at
+##       github.com/M0NsTeRRR/grafana-dashboards — metallb ships no dashboard
+##       of its own) — address-pool usage split by IPv4/IPv6 (an aggregate
+##       ratio would hide "IPv6 exhausted, IPv4 free" in this template's
+##       dual-stack pool), layer-2 announcement activity, config
+##       loaded/stale state — fed by apps/metallb/vm.yaml. Preferred
+##       over the more-downloaded 14127, which is schema-26-era with no
+##       per-family pool split. BGP panels are absent by design — this
+##       template advertises via L2 only.
+      metallb:
+        gnetId: 20162
+        revision: latest
+        datasource:
+          - name: DS_PROMETHEUS
+            value: VictoriaMetrics
+# <<< metallb
+# >>> harbor: ./toggle_blocks.sh --enable harbor when enabling apps/harbor
+##       "Harbor" (grafana.com 16003) — component health, request rates and
+##       latencies on harbor-core, jobservice task throughput and queues,
+##       project and quota usage — fed by apps/harbor/vm.yaml. Chosen over
+##       the more-downloaded "Harbor Overview" (19716), which is published
+##       in Grafana's v2 dashboard schema that file provisioning doesn't
+##       load, and over 15792, whose host panels filter node_uname_info on
+##       a docker-compose "hostname" label this stack's node-exporter
+##       series don't carry. Last revised 2022, but every metric it queries
+##       still exists under the same name in Harbor 2.15 (the exporter's
+##       harbor_*, plus harbor_core_http_* and harbor_jobservice_task_*).
+#       harbor:
+#         gnetId: 16003
+#         revision: latest
+#         datasource:
+#           - name: DS_PROMETHEUS
+#             value: VictoriaMetrics
+# <<< harbor
+# >>> longhorn: ./toggle_blocks.sh --enable longhorn when enabling apps/longhorn
+##       "Longhorn Monitoring & Backups" (grafana.com 16888) — volume
+##       robustness/capacity with per-PVC drill-down, node/disk storage
+##       usage, backup state — fed by apps/longhorn/vm.yaml (plus
+##       kubelet_volume_stats_* from the stack's kubelet scrape). Preferred
+##       over the Longhorn docs' 17626, which is schema-26-era and needs
+##       datasource surgery to provision. Known caveats at apps/longhorn's
+##       1.10.0 pin: the backup-freshness panels query
+##       longhorn_volume_last_backup_at, which 1.10.0 does not export (empty
+##       panels); longhorn_backup_state and the capacity/robustness panels
+##       all work.
+      longhorn:
+        gnetId: 16888
+        revision: latest
+        datasource:
+          - name: DS_PROMETHEUS
+            value: VictoriaMetrics
+# <<< longhorn
+# >>> rook-ceph: ./toggle_blocks.sh --enable rook-ceph when enabling apps/rook-ceph
+##       "Ceph Cluster" / "Ceph - Pools" — health, capacity,
+##       throughput/IOPS, OSD state; per-pool capacity/usage/IOPS — fed by
+##       apps/rook-ceph-cluster/vm.yaml (whose honorLabels: true is what
+##       keeps the on(instance)/on(ceph_daemon)/pool_id joins working). The
+##       URL tag matches apps/rook-ceph-cluster's pin — bump it when bumping
+##       the app; rook's copies track the ceph-mixin originals with Rook
+##       tweaks. The per-OSD drill-down dashboard rook also carries (Ceph
+##       OSD Single) is deliberately skipped — it's a break-glass view; add
+##       it the same way if an OSD alert makes you miss it. Known gap: the
+##       Ceph Cluster CPU panel filters node_cpu_seconds_total on
+##       job="node", which matches nothing under this stack's node-exporter
+##       job naming, so that panel stays empty (the other node_* panels
+##       carry no job filter and show all nodes, not just storage nodes — a
+##       known, harmless imprecision).
+#       ceph-cluster:
+#         url: https://raw.githubusercontent.com/rook/rook/v1.17.5/deploy/examples/monitoring/grafana/Ceph%20Cluster%20Dashboard.json
+#         datasource:
+#           - name: DS_PROMETHEUS
+#             value: VictoriaMetrics
+#       ceph-pools:
+#         url: https://raw.githubusercontent.com/rook/rook/v1.17.5/deploy/examples/monitoring/grafana/Ceph%20Pools%20Dashboard.json
+#         datasource:
+#           - name: DS_PROMETHEUS
+#             value: VictoriaMetrics
+# <<< rook-ceph
+# >>> uptime-kuma: ./toggle_blocks.sh --enable uptime-kuma when enabling apps/uptime-kuma
+##       "Uptime Kuma - Metrics" (grafana.com 18278 — the only meaningful
+##       Uptime Kuma dashboard published) — per-monitor status, response
+##       time, and certificate expiry/validity as seen by its black-box
+##       probes — fed by apps/uptime-kuma's in-app vmservicescrape.yaml
+##       (in-app because the scrape's basicAuth secret must share its
+##       namespace; the dashboard has no such constraint, so it downloads
+##       here like every other one with an upstream).
+#       uptime-kuma:
+#         gnetId: 18278
+#         revision: latest
+#         datasource:
+#           - name: DS_PROMETHEUS
+#             value: VictoriaMetrics
+# <<< uptime-kuma
+  # Memory req=limit, no CPU limit. Doubled to 384Mi after OOMKills
+  # (2026-08-25), then OOMKilled again on 2026-08-26 once the kubelet
+  # relabelConfigs fix below un-dropped the label-heavy cadvisor series
+  # (dashboards now pull far more series per query) — doubled to 768Mi.
+  resources:
+    requests:
+      cpu: 10m
+      memory: 768Mi
+    limits:
+      memory: 768Mi
+  # Dashboard/datasource provisioning sidecars share this block.
+  sidecar:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+    # Load grafana_dashboard=1 ConfigMaps from every namespace instead of
+    # only this one, so a chart that packages its own dashboard can just
+    # enable it wherever it deploys (apps/cnpg's monitoring.grafanaDashboard)
+    # and the dashboard tracks that chart's pin with no vendored copy here.
+    # The sidecar's ClusterRole already allows it. Trade-off: anything that
+    # can create a labeled ConfigMap in some namespace can register a
+    # dashboard.
+    dashboards:
+      searchNamespace: ALL
+      # Not the chart's default /var/lib/grafana/dashboards: the sidecar's
+      # volume is mounted at this folder, and there it hides
+      # /var/lib/grafana/dashboards/downloaded on the storage volume, where
+      # the download-dashboards init container writes every
+      # grafana.dashboards entry (the grafana chart hardcodes that path).
+      # Grafana then logs "Cannot read directory" for the downloaded
+      # provider and none of those dashboards load. /tmp/dashboards is the
+      # upstream grafana chart's default; the sidecar's provider follows it.
+      folder: /tmp/dashboards
+
+# Initial guesses (resize with krr after 14d of usage); memory req=limit, no
+# CPU limit.
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 64Mi
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 128Mi
+    limits:
+      memory: 128Mi
+
+# The chart's default kubelet scrape labelmaps every Kubernetes node label
+# onto every kubelet/cadvisor series. On nodes with label-heavy provisioners
+# (Karpenter alone stamps ~20) that pushed series past vmsingle's
+# -maxLabelsPerTimeseries default of 40, so vmsingle dropped them on ingestion
+# (RowsRejectedOnIngestion + TooManyLogs alerts, and holes in dashboards for
+# pods on those nodes) -- and even under the cap it bloats every container
+# series with node metadata. Replace the default relabelConfigs with the same
+# list minus the labelmap (lists don't merge). The operator still attaches the
+# node name as the "node" and "instance" labels on its own; that's all the
+# bundled dashboards use.
+kubelet:
+  vmScrape:
+    spec:
+      relabelConfigs:
+        - sourceLabels: [__metrics_path__]
+          targetLabel: metrics_path
+        - targetLabel: job
+          replacement: kubelet
+
+# On EKS the scheduler, controller-manager, and etcd run inside the AWS-managed
+# control plane and expose no metrics endpoints, so none of these targets can
+# ever be scraped. Disable them so their scrape objects go away. (kube-proxy
+# scraping is already off by default in this chart.) On k0s/talos these
+# components run on your own nodes, so leave them enabled.
+# >>> eks: deploy.sh uncomments this block when k8s_platform=eks
+# kubeScheduler:
+#   enabled: false
+# kubeControllerManager:
+#   enabled: false
+# kubeEtcd:
+#   enabled: false
+# <<< eks
+
+defaultRules:
+  groups:
+# >>> eks: deploy.sh uncomments this block when k8s_platform=eks
+#     # This chart does NOT gate the matching rule groups on the
+#     # kubeScheduler/kubeControllerManager flags above (it does
+#     # for etcd, but not for the scheduler or controller-manager), so their
+#     # absent(up{job=...}) alerts -- KubeSchedulerDown, KubeControllerManagerDown
+#     # -- fire forever even with the scrapes disabled. Disable those groups
+#     # explicitly too: the two alerting groups, plus the scheduler recording
+#     # rules that can never have data (they'd otherwise trip vmalert's
+#     # RecordingRulesNoData).
+#     kube-scheduler.rules:
+#       enabled: false
+#     kubernetes-system-scheduler:
+#       enabled: false
+#     kubernetes-system-controller-manager:
+#       enabled: false
+# <<< eks
+    # count:up0 records how many scrape targets are down (up == 0), so on a
+    # healthy cluster it matches nothing and produces 0 samples, which trips
+    # vmalert's RecordingRulesNoData alert after 30min. Nothing bundled reads
+    # it (up == 0 answers the same question, and its always-populated twin
+    # count:up1 stays enabled), so disable the rule rather than the alert --
+    # RecordingRulesNoData stays useful for rules that should always have data.
+    kube-prometheus-general.rules:
+      rules:
+        "count:up0":
+          enabled: false

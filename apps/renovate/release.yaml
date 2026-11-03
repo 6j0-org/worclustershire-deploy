@@ -1,0 +1,22 @@
+# https://fluxcd.io/flux/components/helm/helmreleases/
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: renovate
+spec:
+  # Only the CronJob's pod mounts the cache PVC. A storage class that binds a
+  # volume only once a pod mounts it (gp3 on EKS) leaves the PVC Pending
+  # between runs, so waiting for it would time out every install and upgrade.
+  install:
+    disableWait: true
+  upgrade:
+    disableWait: true
+  interval: 10m
+  valuesFrom:
+    - kind: ConfigMap
+      name: renovate-values
+    - kind: Secret
+      name: renovate-secrets
+  chartRef:
+    kind: OCIRepository
+    name: renovate-renovate

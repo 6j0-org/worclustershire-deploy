@@ -12,6 +12,7 @@ resources:
   - helmrepo.yaml
   # - porkbun-secret.secrets.yaml
   - release.yaml
+  - vm.yaml
 configMapGenerator:
   - name: external-dns-values
     files:

@@ -9,7 +9,6 @@ spec:
       cpu: 4000m
       memory: 10Gi
     limits:
-      cpu: 4000m
       memory: 10Gi
   rabbitmq:
     additionalConfig: |
@@ -18,7 +17,7 @@ spec:
       collect_statistics_interval = 10000
   persistence:
     storageClassName: ssd
-    storage: "500Gi"
+    storage: "1Gi"
   affinity:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -45,7 +44,7 @@ spec:
             # pause_minority (above) pauses the whole cluster if two of the
             # three replicas go down at once, and spot reclaims correlate, so
             # keep RabbitMQ on on-demand capacity.
-# >>> eks: deploy.sh uncomments this block when k8s_platform=eks
+# >>> karpenter: deploy.sh uncomments this block when k8s_platform=eks
 #             nodeSelector:
 #               karpenter.sh/capacity-type: on-demand
-# <<< eks
+# <<< karpenter

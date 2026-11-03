@@ -2,12 +2,13 @@
 # vim -O <(helm show values oci://public.ecr.aws/karpenter/karpenter --version 1.15.0) values.yaml
 
 settings:
-  clusterName: project1-dev
+  clusterName: worclustershire
   # SQS queue for native interruption handling (spot interruption, rebalance
   # recommendations, scheduled maintenance events). aws-eks-template provisions
   # it (cluster/karpenter.tf, output: karpenter_interruption_queue_name), named
-  # after the cluster.
-  interruptionQueue: project1-dev
+  # "<cluster>-karpenter-interruption" — keep this in sync with queue_name
+  # there.
+  interruptionQueue: worclustershire-karpenter-interruption
 
 # IRSA: on EKS the controller authenticates with the Karpenter controller IAM
 # role. See https://karpenter.sh/docs/getting-started/ for the required
@@ -17,3 +18,15 @@ settings:
 #   annotations:
 #     eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/karpenter"
 # <<< eks
+
+controller:
+  # Sized from Prometheus (2026-08-22, 14d dev usage): p95 CPU ~29m, peak
+  # memory ~307Mi. Extra memory headroom on purpose: Karpenter's footprint
+  # grows with cluster size, and if it OOMs the cluster can't provision
+  # nodes. No CPU limit (avoids throttling).
+  resources:
+    requests:
+      cpu: 30m
+      memory: 512Mi
+    limits:
+      memory: 512Mi

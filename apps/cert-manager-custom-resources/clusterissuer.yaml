@@ -73,9 +73,10 @@ spec:
             # 1/3 of remaining lifetime, so a cluster outage has ~15 days of
             # slack on these 45-day certs. It is that the NS A record points at
             # a DYNAMIC address (see apps/acme-dns/config.yaml). If it changes,
-            # renewals fail silently. That is why the alerts in
-            # apps/kube-prometheus-stack/cert-expiry-rules.yaml exist; without
-            # them this exact failure went unnoticed for a month.
+            # renewals fail silently. That is why the certificate alerts in
+            # apps/cert-manager/vm.yaml (and EnvoyTlsCertExpiringSoon in
+            # apps/eg/vm.yaml) matter; without alerting this exact failure
+            # went unnoticed for a month.
             host: http://acme-dns-api.acme-dns.svc:8080
             accountSecretRef:
               name: acme-dns-account
@@ -97,10 +98,19 @@ spec:
       #         name: cloudflare-apikey-secret
       #         key: apikey
 
-      # Use this for AWS Route53 (DNS-01). cert-manager authenticates via IRSA:
-      # set the role ARN on the cert-manager ServiceAccount (see
-      # apps/cert-manager/values.yaml -> serviceAccount.annotations).
+      # AWS Route53
+      #
+      # cert-manager authenticates via IRSA: set the role ARN on the
+      # cert-manager ServiceAccount (see apps/cert-manager/values.yaml ->
+      # serviceAccount.annotations).
+      #
+      # If you have CNAMEs in a zone that this cluster doesn't have write
+      # access to (ex. api.devops.coop CNAME api.prod.devops.coop), you can use
+      # `cnameStrategy: Follow`. Create ACME challenge records for each CNAME
+      # that you use (ex. _acme-challenge.api.devops.coop CNAME
+      # _acme-challenge.api.prod.devops.coop).
+      #
       # - dns01:
+      #     cnameStrategy: Follow
       #     route53:
       #       region: us-east-2
-      #       hostedZoneID: ZXXXXXXXXXXXXX

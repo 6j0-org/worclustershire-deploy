@@ -4,6 +4,7 @@
 # Usage: brew bundle
 
 tap "controlplaneio-fluxcd/tap"
+tap "home-operations/tap"
 
 # age (includes age-keygen) - encrypting/decrypting the SOPS age key
 brew "age"
@@ -17,6 +18,10 @@ brew "curl"
 # dyff - YAML diffing, referenced in apps/templates/helm/values.yaml
 brew "dyff"
 
+# flate - renders Flux Kustomizations and HelmReleases offline; flux_diff.sh
+# (and the flux-diff GitHub workflow) diff the rendered cluster with it
+cask "home-operations/tap/flate"
+
 # flux-operator - the Flux Operator CLI used by deploy.sh (NOT the standard
 # `flux` CLI, which appears only in commented-out lines)
 brew "controlplaneio-fluxcd/tap/flux-operator"
@@ -24,8 +29,27 @@ brew "controlplaneio-fluxcd/tap/flux-operator"
 # git - commit/push throughout the bootstrap
 brew "git"
 
+# kuma-cli - inspecting/exporting Uptime Kuma entities for apps/autokuma; no
+# Homebrew formula exists, download the kuma-mac binary from
+# https://github.com/BigBoot/AutoKuma/releases into your PATH as kuma-cli
+
 # helm - pulling charts, showing values, prototyping installs
 brew "helm"
+
+# jq - apps/falcon-platform/update.sh parses the Falcon pull script's
+# --list-tags JSON
+brew "jq"
+
+# kubectl-cnpg - the CloudNativePG kubectl plugin, used in
+# runbooks/connect-cnpg-database.md and runbooks/restore-cnpg-database.md
+brew "kubectl-cnpg"
+
+# postgresql@18 - psql for psql-oauth.sh, which runs PostgreSQL 18's OAuth
+# device flow and so needs libpq's OAuth module. This formula builds it
+# (--with-libcurl, against the system libcurl; checked against 18.6); the
+# libpq formula does not. Keg-only: it lands on PATH as psql-18, which
+# psql-oauth.sh looks for. Arch gets it from postgresql-libs (pkglist.txt).
+brew "postgresql@18"
 
 # openssh (ssh-keygen, ssh-keyscan) - generating the radicle mirror deploy key
 # and verifying forge host keys for apps/radicle/mirror-known-hosts

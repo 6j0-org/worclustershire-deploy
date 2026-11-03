@@ -1,0 +1,57 @@
+# VictoriaLogs
+
+VictoriaLogs as a log store, deployed **single-node** (one StatefulSet pod
+writing to a local PVC). This is the logs half of the VictoriaMetrics-based
+observability stack — deploy it alongside `apps/victoria-metrics`,
+`apps/tempo` and `apps/otel-collector`.
+
+VictoriaLogs only *stores* logs — `apps/otel-collector` ships pod logs into it.
+
+## Ingestion
+
+Everything talks to the server Service:
+`http://victoria-logs-server.victoria-logs.svc.cluster.local:9428`
+(the name is pinned via `server.fullnameOverride` in `values.yaml`).
+
+- **OTLP logs** — `POST /insert/opentelemetry/v1/logs`. This is what
+  `apps/otel-collector` uses to ship pod logs.
+- **Loki push API** — `POST /insert/loki/api/v1/push`, so any shipper that
+  speaks the Loki protocol (Promtail, Alloy, Fluent Bit's loki output) can
+  point here with no pipeline changes.
+
+(VictoriaLogs also accepts Elasticsearch bulk, jsonline and syslog; see the
+upstream data-ingestion docs.)
+
+## Querying
+
+- The `victoriametrics-logs-datasource` Grafana plugin is provisioned by the
+  Grafana in `apps/victoria-metrics`, pointed at the Service above.
+- Built-in web UI (vmui) for ad-hoc LogsQL queries — hits histogram, per-field
+  facets with click-to-filter, live tailing — at
+  <https://vlogs.6j0.org/select/vmui> (private Gateway:
+  vmui-httproute.yaml — the wildcard HTTPS listener in
+  apps/eg-custom-resources covers the hostname, so there is nothing to add
+  there). Without gateway access:
+  `kubectl -n victoria-logs port-forward svc/victoria-logs-server 9428`,
+  then open `http://localhost:9428/select/vmui`.
+
+## Durability caveat
+
+Open-source single-node VictoriaLogs has **no object-storage backend** —
+every log lives only on the pod's PVC, so durability is exactly the
+durability of the underlying PV (e.g. a single-AZ EBS volume). Losing the
+volume loses the logs. If that's not acceptable, back the PVC up externally
+(e.g. EBS snapshots); the paid cluster version is the alternative with
+replicated storage.
+
+## Notes
+
+- Retention is 31 days (`server.retentionPeriod: 31d`), alongside the 30-day
+  metrics retention in `apps/victoria-metrics` and 30-day trace retention in
+  `apps/tempo`.
+- Disk grows with ingestion. VictoriaLogs compresses aggressively, so the
+  20Gi PVC goes a long way; watch `vl_data_size_bytes` (scraped via the
+  VMServiceScrape) and grow `server.persistentVolume.size` with usage —
+  gp3/EBS volumes expand online, but never shrink. A hard safety net is
+  available via `server.retentionDiskSpaceUsage` if the volume ever runs
+  tight before retention kicks in.
