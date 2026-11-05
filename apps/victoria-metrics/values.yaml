@@ -243,13 +243,15 @@ vmagent:
       enableTCP6: "true"
     # Initial guesses (resize with krr after 14d of usage); memory req=limit,
     # no CPU limit. vmagent memory grows with the number of scraped series, so
-    # expect to bump this first.
+    # expect to bump this first. 256Mi ran at ~226Mi steady state on
+    # vmagent v1.150 and OOMKilled on every cold start after v1.155 (chart
+    # 0.97.1), when all scrapes (3x ~60k-sample apiserver targets) fire at once.
     resources:
       requests:
         cpu: 25m
-        memory: 256Mi
+        memory: 512Mi
       limits:
-        memory: 256Mi
+        memory: 512Mi
 
 # The chart auto-provisions the VictoriaMetrics (prometheus-type) datasource
 # pointing at the vmsingle service
