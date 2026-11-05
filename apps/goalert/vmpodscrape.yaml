@@ -1,0 +1,38 @@
+# Scrape GoAlert's own metrics — engine cycle counters (the "are pages
+# actually going out" signal vmrule.yaml alerts on), notification/alert
+# counters, HTTP server/client stats — from the :2112 listener that
+# values.yaml's GOALERT_LISTEN_PROMETHEUS enables.
+#
+# The app chart hardcodes exactly one named containerPort and one Service
+# port (the :8081 UI/API), so :2112 is neither declared on the container nor
+# on the Service. Kubernetes pod discovery only emits a target per DECLARED
+# containerPort, so a `portNumber: 2112` selector matched nothing (vmagent
+# reported the scrape pool with 0 targets — ScrapePoolHasNoTargets). Instead,
+# take the one target discovery does emit (the `http` :8081 port) and
+# rewrite its address to :2112 — the pod IP part is kept as-is, which is
+# what makes the bracketed IPv6 addresses on this cluster survive the
+# rewrite. In-app like every app's monitoring (AGENTS.md → "Monitoring
+# conventions"); the flux Kustomization's dependsOn victoria-metrics
+# provides the CRD ordering.
+#
+# The database is deliberately NOT scraped here — the fleet-wide
+# cnpg-instances VMPodScrape covers it (see the monitoring note in
+# db-cluster.yaml).
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: goalert
+spec:
+  selector:
+    matchLabels:
+      # app.kubernetes.io/name carries the CHART's name ("app" — the
+      # generic devopscoop app chart); instance is what identifies GoAlert.
+      app.kubernetes.io/name: app
+      app.kubernetes.io/instance: goalert
+  podMetricsEndpoints:
+    - port: http
+      relabelConfigs:
+        - sourceLabels: [__address__]
+          regex: "(.*):8081"
+          replacement: "$1:2112"
+          targetLabel: __address__

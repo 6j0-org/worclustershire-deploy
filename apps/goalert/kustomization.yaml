@@ -1,0 +1,36 @@
+# https://fluxcd.io/flux/guides/helmreleases/#refer-to-values-in-configmaps-generated-with-kustomize
+# https://fluxcd.io/flux/guides/helmreleases/#refer-to-values-in-secret-generated-with-kustomize-and-sops
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Setting namespace here will ensure that all objects managed by this Kustomization will explicitly be deployed to this namespace. You don't need to put specify `namespace:` anywhere else if you do this.
+namespace: goalert
+
+resources:
+  - namespace.yaml
+  - ocirepo.yaml
+  - release.yaml
+  # GoAlert's PostgreSQL — the CloudNativePG Cluster plus its barman backup
+  # wiring (ObjectStore, daily ScheduledBackup) in one file. It lives outside
+  # the chart so it deploys to the same namespace with no cross-app dependsOn
+  # beyond cnpg itself and cnpg-barman-plugin. New databases start from the
+  # reusable copy in apps/templates/cnpg-database.
+  - db-cluster.yaml
+  # The client CA chain and certs behind the cert-based login above — needs
+  # the cert-manager CRDs, hence that dependsOn too.
+  - db-client-cert.yaml
+  # Self-monitoring for the paging system (operator.victoriametrics.com CRs;
+  # the flux Kustomization's dependsOn victoria-metrics provides the CRDs).
+  - vmpodscrape.yaml
+  - vmrule.yaml
+configMapGenerator:
+  - name: goalert-values
+    files:
+      - values.yaml=values.yaml
+secretGenerator:
+  - name: goalert-secrets
+    files:
+      - values.yaml=helm_secrets.yaml
+configurations:
+  - kustomizeconfig.yaml

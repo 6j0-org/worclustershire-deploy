@@ -18,7 +18,7 @@ Run `rad auth` in a throwaway pod built from the same image, so the key comes ou
 kubectl run radicle-keygen --rm --attach --quiet --restart=Never \
   --image=docker.io/dirk1980/radicle-seed-node@sha256:78ccee526ad4b4f4d7c79c2323b032a7209858a48e1dc9c077272ff1660050e2 \
   --env=RAD_HOME=/tmp/rad --env=RAD_PASSPHRASE= \
-  --command -- sh -c 'rad auth --alias radicle.project1-dev.devops.coop >/dev/null 2>&1; cat /tmp/rad/keys/radicle /tmp/rad/keys/radicle.pub'
+  --command -- sh -c 'rad auth --alias radicle.6j0.org >/dev/null 2>&1; cat /tmp/rad/keys/radicle /tmp/rad/keys/radicle.pub'
 ```
 
 That prints two things back to back: the OpenSSH private key block, then the one-line `ssh-ed25519 …` public key. Paste each into the matching field in `node-key.secrets.yaml.decrypted`, then encrypt it:
@@ -56,14 +56,14 @@ timeout 5 bash -c 'exec 3<>/dev/tcp/<public-address>/8776' && echo open || echo 
 - `config.json` → `node.externalAddresses` — what the node advertises over gossip.
 - `tcproute.yaml` → the `external-dns.alpha.kubernetes.io/hostname` annotation — what gets a record pointing at the Gateway's load balancer.
 
-Both are `radicle.project1-dev.devops.coop` on this cluster. If they disagree, peers get an address that does not resolve to this node and inbound replication silently never happens.
+Both are `radicle.6j0.org` on this cluster. If they disagree, peers get an address that does not resolve to this node and inbound replication silently never happens.
 
 A TCPRoute has no `hostnames` field — a TCP stream carries no hostname to route on — so the record comes from that annotation and the listener is dedicated to this one app. That is also why the listener is named `radicle` rather than something generic: a second TCP service needs its own port and its own listener.
 
 What you hand out to people who want to seed from you is the pair — `rad node status` in the pod prints the Node ID:
 
 ```text
-<node-id>@radicle.project1-dev.devops.coop:8776
+<node-id>@radicle.6j0.org:8776
 ```
 
 One consequence of proxying: `radicle-node` sees connections coming from the Envoy pod, not from the peer. Nothing breaks — Radicle authenticates peers cryptographically by Node ID, not by address — but peer IPs in the node's logs are Envoy's, and per-IP reasoning about traffic has to happen at the Gateway instead.

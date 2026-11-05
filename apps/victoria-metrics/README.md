@@ -1,0 +1,52 @@
+# victoria-metrics
+
+The metrics half of the VictoriaMetrics observability stack, via the [victoria-metrics-k8s-stack](https://docs.victoriametrics.com/helm/victoria-metrics-k8s-stack/) chart:
+
+- **vmsingle** — the metrics store (single-node, 30d retention, 20Gi PVC). Remote-write endpoint: `http://vmsingle-victoria-metrics.victoria-metrics.svc.cluster.local:8428/api/v1/write`; query UI at `https://vmui.6j0.org` (under `/vmui`).
+- **vmagent** — scrapes the cluster (kubelet, cAdvisor, apiserver, CoreDNS, kube-state-metrics, node-exporter, and anything selected by VM scrape CRs) and remote-writes to vmsingle.
+- **vmalert** — evaluates the chart's default alerting/recording rules (the upstream kube-prometheus rule set, fetched by the chart's sync-job) plus any `VMRule`/`PrometheusRule` objects in the cluster.
+- **Alertmanager** — 1Gi PVC for silences and the notification log; UI at `https://alertmanager.6j0.org`.
+- **VictoriaMetrics operator** — reconciles the `VM*` CRs above and converts prometheus-operator objects (`ServiceMonitor`, `PodMonitor`, `PrometheusRule`, `Probe`, `ScrapeConfig`) into their VM equivalents, so charts written for prometheus-operator plug in unchanged.
+- **Grafana** — at `https://grafana.6j0.org`, provisioned with datasources for VictoriaMetrics (this app), VictoriaLogs (`apps/victoria-logs`), Tempo (`apps/tempo`), and Alertmanager.
+
+## CRD ownership
+
+victoria-metrics + victoria-logs + tempo + otel-collector + goalert form the observability stack, and it is a required part of this template: every app ships its own VM scrape/rule objects (AGENTS.md → "Monitoring conventions").
+
+The VictoriaMetrics CRDs (`operator.victoriametrics.com`) come from `apps/victoria-metrics-crds`, not from this chart (its `victoria-metrics-operator.crds` install is off). That app installs nothing but the CRDs and depends on nothing, so every app with VM objects — this one included — can depend on it without depending on the whole stack. The stack itself can't be that dependency: it ships HTTPRoutes, so it needs eg's Gateway API CRDs, and it has `wait: true`, so a failing Grafana or vmsingle upgrade would hold every dependent app. The CRDs carry `helm.sh/resource-policy: keep`, because deleting a CRD deletes every object of its kind.
+
+The operator *converts* prometheus-operator objects (`ServiceMonitor`, `PodMonitor`, `PrometheusRule`, …) but does not install their `monitoring.coreos.com` CRDs, so a chart's `serviceMonitor.enabled` toggle fails the apply here — write a `VMServiceScrape`/`VMPodScrape` instead (AGENTS.md → "Monitoring conventions"). If a chart ever leaves no other option, install the [prometheus-operator-crds](https://artifacthub.io/packages/helm/prometheus-community/prometheus-operator-crds) chart as its own app; from this chart's perspective those CRDs are read-only inputs, so there is no conflict with whoever installs them.
+
+## Alert routing (Slack + GoAlert)
+
+Alertmanager sends every alert to both GoAlert for paging (see apps/goalert/README.md → "Wiring Alertmanager to GoAlert") and Slack — one match-everything sub-route to a single `default` receiver that carries both a `slack_configs` and a `webhook_configs` entry, since Alertmanager fans each notification out to every integration on the receiver. It is one combined receiver rather than a `goalert` sub-route with `continue: true` falling through to a `slack` sub-route because the Alertmanager UI lists each alert group once per receiver, so the split-receiver layout displayed every alert twice. The two exceptions are blackholed: the Watchdog alert (until a GoAlert heartbeat monitor watches for its *absence* instead) and InfoInhibitor, which exists only to drive the inhibit rules described below.
+
+The routing config is split across two files, and the split follows Flux's merge semantics — valuesFrom merges like `helm -f`: maps deep-merge, but lists are replaced wholesale, so each list must live entirely in one file:
+
+- **helm_secrets.yaml** (edit with `sops helm_secrets.yaml`; before bootstrap, helm_secrets.yaml.decrypted) holds the `route.routes` and `receivers` lists — including the non-secret Slack channel and message templates — because the GoAlert webhook receiver's URL embeds an integration key, and the Slack webhook URL (`alertmanager.config.global.slack_api_url`) is secret too.
+- **values.yaml** keeps the default route receiver (`route.receiver: default`), `route.group_by`, and the `inhibit_rules` list in its `>>> slack` marker block (uncommented by deploy.sh when `slack_alerts=true` in variables.sh) — none of that is secret, so it stays reviewable outside sops.
+
+To enable it before running deploy.sh:
+
+1. In helm_secrets.yaml.decrypted, uncomment the `alertmanager` block (deleting the trailing `{}`), replace the placeholder `slack_api_url` with a [Slack incoming webhook](https://api.slack.com/messaging/webhooks) URL, and set your channel. The GoAlert integration-key URL can only be created once GoAlert is running, so leave its placeholder on a first bootstrap and fill it in afterwards with `sops helm_secrets.yaml` (apps/goalert/README.md walks through it).
+1. Set `slack_alerts=true` in variables.sh. deploy.sh uncomments the `>>> slack` block in values.yaml and encrypts the secrets.
+
+To enable it on an already-deployed cluster instead, uncomment the `>>> slack` block in values.yaml — run `./toggle_blocks.sh --enable slack` from the repo root, or by hand: strip the leading `#` and space between the markers, leaving the markers in place — and edit the webhook URLs into the encrypted secrets with `sops helm_secrets.yaml`.
+
+`group_by` is `["alertname", "namespace"]`, and getting it right matters more than it looks. Alertmanager's default is to put **every** firing alert into a single group with no common labels, and GoAlert's Alertmanager integration opens **one alert per group** — not one per Prometheus alert. With the default, six unrelated alerts (TargetDown, KubePodNotReady, TooManyLogs, …) arrived in GoAlert as one alert with nothing in it naming them, so a `TargetDown` page never appeared under its own name (ENG-1613). Grouping on alertname+namespace gives one group per distinct problem while still collapsing a single alert that fires across many pods into one page. It sits on the root route because child routes inherit it and grouping is not secret, so it stays reviewable outside sops — the trade-off being that Slack gets a message per alertname+namespace instead of one digest. Changing paging alone would require splitting the combined `default` receiver back into separate `goalert` and `slack` routes in `helm_secrets.yaml`, which brings back the duplicate per-receiver listing in the Alertmanager UI. If you ever want strictly one GoAlert alert per firing alert, `group_by: ["..."]` (a literal ellipsis) disables aggregation entirely, at the cost of a page per affected pod.
+
+### Inhibit rules and InfoInhibitor
+
+The bundled alert rules assume a severity ladder that Alertmanager only enforces if `inhibit_rules` are configured, and this chart doesn't ship them — its default values carry the standard three only as a commented-out example. values.yaml's slack block therefore declares them: critical mutes warning+info for the same alertname+namespace, warning mutes info likewise, and `InfoInhibitor` mutes every info alert in its namespace. `InfoInhibitor` is a bundled meta-alert (severity=none, no `for:` delay) that fires whenever a severity=info alert is pending or firing in a namespace, and stops when a warning/critical alert fires there — so info alerts never notify on their own, but automatically ride along as context when something real breaks in the same namespace. Per its upstream runbook it must never reach a receiver itself, hence the blackhole route; being routed to a blackhole doesn't stop it working as an inhibition source. Without all this, every transient info blip pages: a falcon-kac pod replacement briefly fills its 2-pod ResourceQuota, `KubeQuotaFullyUsed` (info) goes pending, and InfoInhibitor paged GoAlert through the catch-all within seconds — twice in one day (2026-09-08).
+
+## Enabling this app
+
+deploy.sh's `core_app_list` registers `victoria-metrics-crds.yaml`, `victoria-metrics.yaml`, `victoria-logs.yaml`, `tempo.yaml`, `otel-collector.yaml`, `goalert.yaml` (plus `cnpg.yaml` for GoAlert's database) in `flux/flux-system/kustomization.yaml` at bootstrap.
+
+## Notes
+
+- The cluster is IPv6-only, and VictoriaMetrics binaries listen and dial IPv4-only by default; every VM component in values.yaml sets `enableTCP6: "true"`. Alertmanager, Grafana, and the exporters are ordinary dual-stack Go listeners and need nothing.
+- The chart's sync-job fetches the default dashboards and rules from raw.githubusercontent.com at install time, and at every Grafana pod start the plugins download from grafana.com and the `grafana.dashboards` entries in values.yaml (the per-app dashboards) download from grafana.com and raw.githubusercontent.com — all of it needs internet egress.
+- Upgrading the chart: keep `apps/victoria-metrics-crds/ocirepo.yaml` on the `victoria-metrics-operator-crds` release whose appVersion matches the operator this chart bundles (`helm show chart` on the `victoria-metrics-operator` subchart in the new k8s-stack version). Bump the CRDs first, or in the same commit: Flux upgrades `victoria-metrics-crds` before `victoria-metrics` because of the dependsOn.
+- Migrating a repo that predates `victoria-metrics-crds` (it had `apps/victoria-metrics-custom-resources`): in the same change that pulls this in, replace `victoria-metrics-custom-resources.yaml` with `victoria-metrics-crds.yaml` in `flux/flux-system/kustomization.yaml` — a resources entry naming a deleted file breaks the whole flux-system build — and move any repo-local files from the old app into the app they monitor. On the cluster nothing needs doing by hand. The new HelmRelease takes ownership of the existing CRDs, which this chart had installed from its `crds/` directory; Helm never deletes those, so turning the chart's CRDs off removes nothing. Flux prunes the old Kustomization's objects from the `victoria-metrics` namespace as the moved copies appear in each app's namespace. Pod scrapes without a `jobLabel` start new series under `job="<app namespace>/<name>"`; no shipped rule or dashboard matches on the old `victoria-metrics/<name>` value.
+- vmsingle and Alertmanager are singletons; on EKS, deploy.sh pins them to on-demand capacity (the `>>> karpenter` blocks in values.yaml).

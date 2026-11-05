@@ -10,10 +10,11 @@
 #         kind: EnvoyProxy
 #         name: eg-public
 #
-# The HA config (replicas + topology spread + PDB) and the health-check
-# annotations are identical to eg-private — see the rationale in
-# envoyproxy-private.yaml. The only difference is the load-balancer scheme:
-# internet-facing (the eks block below).
+# The HA config (replicas + topology spread + PDB + the probes-through-the-
+# filter-chain patch) and the health-check annotations are identical to
+# eg-private — see the rationale in envoyproxy-private.yaml. The only
+# difference is the load-balancer scheme: internet-facing (the eks block
+# below).
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyProxy
 metadata:
@@ -21,17 +22,29 @@ metadata:
 spec:
   # IPv4 for the same reason as eg-private -- see envoyproxy-private.yaml.
   ipFamily: IPv4
+  # Tag-extraction rules for the coraza WAF's wasm counters — same block as
+  # envoyproxy-private.yaml, where the full rationale lives: without these,
+  # each (rule, phase) pair becomes a distinct metric NAME. Both fleets run
+  # the same EnvoyExtensionPolicy (apps/coraza), so both need the tags.
+  bootstrap:
+    type: Merge
+    value: |
+      stats_config:
+        stats_tags:
+          - tag_name: phase
+            regex: "(_phase=([a-z_]+))"
+          - tag_name: rule_id
+            regex: "(_ruleid=([0-9]+))"
+          - tag_name: identifier
+            regex: "(_identifier=([0-9a-z.:]+))"
+          - tag_name: owner
+            regex: "(_owner=([0-9a-z.:]+))"
+          - tag_name: authority
+            regex: "(_authority=([0-9a-z.:]+))"
   provider:
     type: Kubernetes
     kubernetes:
       envoyDeployment:
-        # EG v1.9.2's built-in Envoy is still v1.39.1, which has CVE-2026-35189
-        # and GHSA-8vc2-jrm4-835w / GHSA-47vj-9r25-wv5j; the release notes say to
-        # override it to >= v1.39.3. Setting it here is the only override that
-        # takes effect, because an attached EnvoyProxy without mergeType replaces
-        # the Helm-generated default. Drop this once EG's default catches up.
-        container:
-          image: docker.io/envoyproxy/envoy:distroless-v1.39.4
         replicas: 3
         pod:
           topologySpreadConstraints:
@@ -46,6 +59,9 @@ spec:
                   app.kubernetes.io/name: envoy
             - maxSkew: 1
               topologyKey: kubernetes.io/hostname
+              # Upstream sets DoNotSchedule here (see header). This cluster is a
+              # fixed 3-node pool with no autoscaler and 3 replicas, so a hard
+              # rule leaves every rollout's surge pod Pending: kept soft.
               whenUnsatisfiable: ScheduleAnyway
               matchLabelKeys:
                 - gateway.envoyproxy.io/owning-gateway-name
@@ -53,6 +69,30 @@ spec:
                 matchLabels:
                   app.kubernetes.io/managed-by: envoy-gateway
                   app.kubernetes.io/name: envoy
+        # Probes through the filter chain instead of admin /ready — rationale
+        # in envoyproxy-private.yaml. StrategicMerge matches containers by
+        # name and merges per-field, so only each probe's httpGet path/port
+        # change; every other probe field keeps Envoy Gateway's default.
+        patch:
+          type: StrategicMerge
+          value:
+            spec:
+              template:
+                spec:
+                  containers:
+                    - name: envoy
+                      startupProbe:
+                        httpGet:
+                          path: /healthz
+                          port: 10080
+                      readinessProbe:
+                        httpGet:
+                          path: /healthz
+                          port: 10080
+                      livenessProbe:
+                        httpGet:
+                          path: /healthz
+                          port: 10080
       envoyPDB:
         maxUnavailable: 1
 # >>> eks: deploy.sh uncomments this block when k8s_platform=eks

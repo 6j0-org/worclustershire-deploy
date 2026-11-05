@@ -1,0 +1,240 @@
+# GoAlert's PostgreSQL, run by the CloudNativePG operator (apps/cnpg — the
+# flux Kustomization for this app dependsOn it). GoAlert applies its own
+# schema migrations at startup, so CNPG only has to provide an empty database.
+#
+# Three documents: the Cluster, the ObjectStore its barman backups land in,
+# and the daily ScheduledBackup. One file so the database's whole story reads
+# top to bottom — apps/templates/cnpg-database holds the reusable copy for
+# creating new databases.
+#
+# Auth model: GoAlert logs in with the client certificate from
+# db-client-cert.yaml (CN = the owner role below); the pg_hba rules under
+# postgresql: make the cert the ONLY way in for that role. CNPG still
+# auto-creates the `goalert-db-app` Secret (`<cluster>-app`) with a password
+# and a `uri` key, but the reject rule makes them unusable — values.yaml
+# builds GOALERT_DB_URL from the cert files instead.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: goalert-db
+spec:
+  # One primary + two streaming replicas, CNPG's standard HA shape. Three
+  # matters, not just two: CNPG always creates a PDB requiring the primary to
+  # stay available, so a single-instance cluster blocks node drains outright
+  # ("Cannot evict pod as it would violate the pod's disruption budget",
+  # retrying forever). With replicas the operator instead switches the
+  # primary over ahead of the drain, and at 3+ instances the replica PDB
+  # (minAvailable: instances - 2) releases one replica at a time — a standby
+  # exists to fail over to even mid-drain, which 2 instances can't guarantee.
+  # Replication is async (CNPG default); GoAlert always connects through the
+  # -rw Service, so switchovers are invisible to it. The dataset is tiny
+  # (schedules, escalation policies, alert metadata), so the cost of HA is
+  # just two more pods and PVCs.
+  instances: 3
+  # A restarted replica stays unready until it streams, so the replica PDB
+  # waits for it to catch up (see apps/templates/cnpg-database).
+  probes:
+    startup:
+      type: streaming
+  # A database must not ride Karpenter capacity: consolidation and drift
+  # drains force a switchover whenever the bin-packer rearranges nodes (the
+  # operator switches the primary over as soon as its node is cordoned, so
+  # the primary PDB never gets to object). The affinity pins the instances to
+  # managed-node-group nodes — `Exists` on the label survives node-group
+  # renames and blue/green rotations — and the toleration matches the
+  # CriticalAddonsOnly taint that reserves those nodes for scheduling-critical
+  # workloads (see the managed node group in aws-eks-template).
+# >>> karpenter: deploy.sh uncomments this block when k8s_platform=eks
+#   affinity:
+#     nodeAffinity:
+#       requiredDuringSchedulingIgnoredDuringExecution:
+#         nodeSelectorTerms:
+#           - matchExpressions:
+#               - key: eks.amazonaws.com/nodegroup
+#                 operator: Exists
+#     tolerations:
+#       - key: CriticalAddonsOnly
+#         operator: Exists
+# <<< karpenter
+  # Pinned to PostgreSQL 17, deliberately: GoAlert v0.34 is tested against
+  # PostgreSQL 13-17, while this repo's CNPG operator (1.28) defaults new
+  # clusters to PostgreSQL 18, which GoAlert's test suite doesn't cover yet.
+  # Bump the major here deliberately, alongside GoAlert upgrades.
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.11-system-trixie
+  bootstrap:
+    initdb:
+      database: goalert
+      owner: goalert
+      # No postInitSQL for the pgcrypto extension GoAlert needs: its
+      # migrations run CREATE EXTENSION IF NOT EXISTS pgcrypto themselves,
+      # and pgcrypto is a trusted extension since PostgreSQL 13, so the
+      # (non-superuser) database owner above is allowed to create it.
+  # Hand the CLIENT CA to cert-manager so the app's client cert can be issued
+  # and auto-renewed (db-client-cert.yaml). Providing clientCASecret means
+  # the operator stops signing client certs itself, so the streaming_replica
+  # cert must be provided too; one cert-manager secret serves both fields,
+  # since clientCASecret only reads its ca.crt key and cert-manager writes
+  # ca.crt into every secret it issues. Server certs stay operator-managed
+  # (the `goalert-db-ca` secret holds the server CA — values.yaml mounts its
+  # ca.crt for sslmode=verify-full). One operational note: kubectl cnpg
+  # certificate can't mint client certs on this cluster — issue a Certificate
+  # from the goalert-db-client-ca Issuer instead.
+  certificates:
+    clientCASecret: goalert-db-replication-cert # pragma: allowlist secret — the Secret's name, not a value
+    replicationTLSSecret: goalert-db-replication-cert # pragma: allowlist secret — the Secret's name, not a value
+  postgresql:
+    pg_hba:
+      # Possession of a client cert signed by this cluster's client CA
+      # (certificates.clientCASecret above, issued by db-client-cert.yaml)
+      # IS GoAlert's login — the cert method requires TLS and CN == role.
+      # pg_hba is first-match per (type, db, user, address), so this rule
+      # owns every TLS connection from the owner role.
+      - hostssl all goalert all cert
+      # ... and the reject closes the only other path: a non-TLS connection
+      # falling through to CNPG's default scram catch-all, where the
+      # password in the auto-generated `<cluster>-app` Secret would still
+      # work. With both rules the app role has exactly one way in. Other
+      # roles (break-glass, per-developer) keep the scram catch-all.
+      - host all goalert all reject
+  storage:
+    size: 1Gi
+  # On EKS these volumes opt out of the DLM snapshot policy: barman owns this
+  # database's backups (the ObjectStore below), so daily EBS snapshots would
+  # be redundant spend — and a crash-consistent snapshot of one replica's
+  # volume is a restore footgun next to barman's point-in-time recovery.
+  # The DLM policy in aws-eks-template (cluster/dlm.tf) only snapshots
+  # volumes tagged Backup=dlm (applied by the default gp3 class);
+  # gp3-dangerous (apps/eks-storage-classes) tags them Backup=none instead.
+  # Tags apply at provision time only, so volumes that predate the Backup
+  # tag are already out of the policy — hand-tag them Backup=none anyway so
+  # they read as deliberate, not unaccounted for.
+# >>> eks: deploy.sh uncomments this block when k8s_platform=eks
+#     storageClass: gp3-dangerous
+# <<< eks
+  # Separate WAL volume, so a WAL burst fills this volume instead of the data
+  # volume, and WAL I/O is isolated from table I/O — the full rationale and
+  # the 2026-09-05 incident it comes from are in apps/templates/cnpg-database.
+  # 1Gi is plenty for GoAlert's write rate. walStorage is one-way: it can be
+  # added to a running cluster (the operator rolls the instances to attach
+  # it), but never removed.
+  walStorage:
+    size: 1Gi
+# >>> eks: deploy.sh uncomments this block when k8s_platform=eks
+#     storageClass: gp3-dangerous
+# <<< eks
+  # Continuous WAL archiving + base backups through the Barman Cloud Plugin
+  # (apps/cnpg-barman-plugin). The bucket, retention, and sidecar tuning live
+  # in the ObjectStore below; the daily cadence in the ScheduledBackup at the
+  # bottom of this file.
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: goalert-db
+  # Memory req=limit, no CPU limit. Doubled from the initial 256Mi guess
+  # after the postgres container was OOMKilled 9 times in its first half hour
+  # (KubePodCrashLooping); resize with krr after some real usage.
+  resources:
+    requests:
+      cpu: 25m
+      memory: 512Mi
+    limits:
+      memory: 512Mi
+  # Deliberately no monitoring block. The fleet-wide cnpg-instances
+  # VMPodScrape in apps/cnpg/vm.yaml scrapes every pod
+  # labeled cnpg.io/podRole=instance, so this database is collected with no
+  # per-app config. Don't set monitoring.enablePodMonitor: it would duplicate
+  # that scrape (every cnpg_* series stored twice under a second job label),
+  # and the field is deprecated upstream ("will be removed in a future
+  # version of the operator").
+  # IRSA: the instance pods run as the goalert-db ServiceAccount (CNPG names
+  # it after the Cluster), and this annotation lets their barman-cloud
+  # sidecars reach the backup bucket. Role and bucket come from
+  # aws-eks-template cluster/cnpg-backups.tf (see the cnpg_db_role_arns
+  # output).
+# >>> eks: deploy.sh uncomments this block when k8s_platform=eks
+#   serviceAccountTemplate:
+#     metadata:
+#       annotations:
+#         eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/goalert-db"
+# <<< eks
+---
+# Where goalert-db's backups live. The Barman Cloud Plugin (apps/
+# cnpg-barman-plugin — this app's flux Kustomization dependsOn it) reads this
+# ObjectStore and runs a barman-cloud sidecar in each instance pod that ships
+# WAL segments continuously and base backups on the ScheduledBackup's cadence
+# (next document). Restore runbook: runbooks/restore-cnpg-database.md.
+#
+# Bucket and IAM role come from aws-eks-template (cluster/cnpg-backups.tf,
+# keyed by app under local.cnpg_databases — adding a database there stamps
+# out its bucket and role, with optional cross-region replication);
+# authentication is IRSA (inheritFromIAMRole) via the serviceAccountTemplate
+# annotation on the Cluster above, so no credentials Secret is needed. On a
+# non-AWS platform, point destinationPath at an S3-compatible store and
+# supply credentials via a Secret referenced from s3Credentials instead.
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: goalert-db
+spec:
+  configuration:
+    destinationPath: s3://6j0-org-worclustershire-goalert-db-backups/
+    s3Credentials:
+      inheritFromIAMRole: true
+    wal:
+      compression: gzip
+      # Ship up to 8 WAL segments per archiver invocation. Archive throughput
+      # is what keeps the WAL volume's backlog bounded (WAL that isn't
+      # archived can't be recycled), and single-segment uploads have already
+      # lost that race once — see the walStorage comment on the Cluster
+      # above.
+      maxParallel: 8
+    data:
+      compression: gzip
+  # Recovery-window retention: barman keeps enough base backups and WAL to
+  # restore to any point in the last 30 days, and deletes obsolete objects
+  # itself after each successful backup — which is why the bucket has no
+  # object-expiration lifecycle rule of its own.
+  retentionPolicy: "30d"
+  instanceSidecarConfiguration:
+    # Memory req=limit, no CPU limit, same as the postgres containers in the
+    # Cluster above. 512Mi even though GoAlert's dataset is tiny:
+    # wal.maxParallel above lets the sidecar run one barman-cloud-wal-archive
+    # process per ready WAL segment, and a burst of them OOMKills it at
+    # 128Mi. Bursts come on first start (initdb's and the first base
+    # backup's segments) and after every switchover (the demoted primary
+    # flushes its leftover WAL), and while the sidecar crash-loops the pod is
+    # never Ready: a new primary leaves the -rw Service without endpoints, a
+    # demoted one never rejoins. Base backups of a multi-GB database also
+    # OOMKill it mid-stream at 128Mi (the Backup fails with "rpc error ...
+    # EOF"); raise it further if they still do.
+    resources:
+      requests:
+        cpu: 10m
+        memory: 512Mi
+      limits:
+        memory: 512Mi
+---
+# Daily base backup of goalert-db, on top of the continuous WAL archiving
+# the Barman Cloud Plugin does regardless (the ObjectStore above) — together
+# they give point-in-time recovery anywhere inside the retention window, not
+# just nightly snapshots.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: goalert-db-daily
+spec:
+  cluster:
+    name: goalert-db
+  # CNPG's cron format has a leading seconds field: daily at 04:00 UTC.
+  schedule: "0 0 4 * * *"
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+  # Take the first backup as soon as this resource lands instead of waiting
+  # up to a day — it's what seeds the object store on a fresh bootstrap.
+  immediate: true
+  # Backup objects get an ownerReference to this ScheduledBackup, so deleting
+  # it garbage-collects the Backup resources (the S3 data stays; barman's
+  # retention policy owns that).
+  backupOwnerReference: self

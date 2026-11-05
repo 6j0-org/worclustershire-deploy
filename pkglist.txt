@@ -1,8 +1,10 @@
 # Arch Linux package list for fluxcd-template — the pacman/AUR equivalent of
 # the Brewfile. Installs every CLI tool used or referenced by this repo.
 #
-# Requires an AUR helper (yay or paru) because flux-operator and dyff are AUR
-# packages; everything else is in the official repos.
+# Requires an AUR helper (yay or paru) because autokuma-cli, dyff,
+# flux-operator, and kubectl-cnpg are AUR packages; everything else is in the
+# official repos, except flate, which has no Arch package at all (see its
+# entry below for the manual install).
 #
 # Usage:
 #   grep -vE '^(#|$)' pkglist.txt | yay -S --needed -
@@ -10,6 +12,10 @@
 
 # age (includes age-keygen) — encrypting/decrypting the SOPS age key
 age
+
+# autokuma-cli — AUR; kuma-cli, inspecting/exporting Uptime Kuma entities for
+# apps/autokuma
+autokuma-cli
 
 # bash — all repo scripts use `#!/usr/bin/env bash`
 bash
@@ -19,6 +25,12 @@ curl
 
 # dyff — AUR; YAML diffing, referenced in apps/templates/helm/values.yaml
 dyff
+
+# flate — no Arch package (neither official nor AUR, checked 2026-09); renders
+# Flux Kustomizations and HelmReleases offline for flux_diff.sh and the
+# flux-diff GitHub workflow. Put a release binary from
+# https://github.com/home-operations/flate/releases on your PATH, or run
+# `go install github.com/home-operations/flate/cmd/flate@latest`.
 
 # flux-operator — AUR; the Flux Operator CLI used by deploy.sh (NOT the
 # standard `flux` CLI, which appears only in commented-out lines)
@@ -34,12 +46,25 @@ go-yq
 # helm — pulling charts, showing values, prototyping installs
 helm
 
+# jq — apps/falcon-platform/update.sh parses the Falcon pull script's
+# --list-tags JSON
+jq
+
+# kubectl-cnpg — AUR; the CloudNativePG kubectl plugin, used in
+# runbooks/connect-cnpg-database.md and runbooks/restore-cnpg-database.md
+kubectl-cnpg
+
 # openssh (ssh-keygen, ssh-keyscan) — generating the radicle mirror deploy key
 # and verifying forge host keys for apps/radicle/mirror-known-hosts
 openssh
 
 # pre-commit — git hook framework used by .pre-commit-config.yaml
 pre-commit
+
+# postgresql-libs — psql for psql-oauth.sh. Arch's build ships libpq's OAuth
+# module (usr/lib/libpq-oauth-18.so), so PostgreSQL 18's device flow works
+# here.
+postgresql-libs
 
 # python — runs the local validate-flux pre-commit hook
 python

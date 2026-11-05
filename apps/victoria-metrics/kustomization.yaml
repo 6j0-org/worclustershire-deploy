@@ -1,0 +1,48 @@
+# https://fluxcd.io/flux/guides/helmreleases/#refer-to-values-in-configmaps-generated-with-kustomize
+# https://fluxcd.io/flux/guides/helmreleases/#refer-to-values-in-secret-generated-with-kustomize-and-sops
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Setting namespace here will ensure that all objects managed by this Kustomization will explicitly be deployed to this namespace. You don't need to put specify `namespace:` anywhere else if you do this.
+namespace: victoria-metrics
+
+resources:
+  - namespace.yaml
+  - helmrepo.yaml
+  - release.yaml
+  - grafana-httproute.yaml
+  - vmui-httproute.yaml
+  - alertmanager-httproute.yaml
+  # Hand-built, sidecar-provisioned dashboards: no upstream publishes them,
+  # so they can't be pulled at pod start by the download-dashboards init
+  # container like the grafana.dashboards entries in values.yaml (which is
+  # where every dashboard with a real upstream lives — including the gated
+  # ones for platform-conditional and opt-in apps).
+  - envoy-proxy-global-dashboard.yaml
+  - envoy-clusters-dashboard.yaml
+  - envoy-gateway-global-dashboard.yaml
+  - flux-vm.yaml
+# >>> coraza: ./toggle_blocks.sh --enable coraza when enabling apps/coraza
+#   - coraza-dashboard.yaml
+# <<< coraza
+  # SSO for Alertmanager and vmui through the optional dex app: an Envoy
+  # Gateway SecurityPolicy runs the OIDC flow at the gateway, same dex →
+  # workforce-IdP login as Grafana. grafana-oidc-client.secrets.yaml is
+  # Grafana's own OAuth client secret, delivered as an env var via
+  # envFromSecret in values.yaml. See apps/dex/README.md.
+# >>> dex: NOT auto-enabled by deploy.sh — run ./toggle_blocks.sh --enable dex after deploying apps/dex
+#   - oidc-securitypolicy.yaml
+#   - eg-oidc-client.secrets.yaml
+#   - grafana-oidc-client.secrets.yaml
+# <<< dex
+configMapGenerator:
+  - name: victoria-metrics-values
+    files:
+      - values.yaml=values.yaml
+secretGenerator:
+  - name: victoria-metrics-secrets
+    files:
+      - values.yaml=helm_secrets.yaml
+configurations:
+  - kustomizeconfig.yaml

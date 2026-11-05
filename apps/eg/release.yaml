@@ -5,9 +5,13 @@ metadata:
   name: eg
 spec:
   interval: 10m
-  # Helm never upgrades CRDs shipped in a chart's crds/ directory, and Flux
-  # defaults upgrade.crds to Skip, so without this the CRDs stay at whatever
-  # version was first installed while the controller moves on.
+  # The chart ships its CRDs (Envoy Gateway's and the Gateway API bundle) in
+  # crds/ directories, which Helm installs once and never upgrades; Flux's
+  # default (Skip) does the same. CreateReplace applies them on every chart
+  # bump, before the controller rolls: each Envoy Gateway minor requires its
+  # own Gateway API bundle (1.9 needs v1.6) to be installed first, and since
+  # 1.8 the controller unconditionally watches ListenerSet, which older
+  # bundles lack.
   install:
     crds: CreateReplace
   upgrade:

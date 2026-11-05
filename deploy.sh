@@ -1,10 +1,38 @@
 #!/usr/bin/env bash
 
 # This script is idempotent, fails fast, and should be safe to run against a running cluster. It requires the variables.sh file.
+#
+# Usage: ./deploy.sh [--update-flux]
+#
+# On a fresh template clone it performs the full bootstrap: placeholder
+# substitution, enabling optional blocks, encrypting secrets, wiring Flux
+# sync/decryption, and enabling the apps -- committing and pushing as it goes.
+# On an already-bootstrapped repo (detected below via a sentinel annotation)
+# the one-time rewrites (secrets sweep, sync wiring, app enabling) are
+# skipped; a re-run only rewrites placeholders and uncomments marker blocks in
+# apps added since the last run (a no-op when there are none).
+#
+# The cluster-side steps -- every flux-operator command: installing the
+# operator and flux-instance.yaml, and creating the flux-system and sops-age
+# secrets -- only run with --update-flux, so a routine re-run needs no cluster
+# access. Pass it when bootstrapping, after changing flux-instance.yaml, and
+# after rotating the GitHub App or SOPS age key.
 
-# TODO: Remove x to disable debug output after someone with a Mac tests this script.
 # https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
 set -Eexuo pipefail
+
+# Parse arguments before anything else, so a typo can't fail mid-run after
+# commits have been pushed.
+update_flux=false
+for arg in "$@"; do
+  case "$arg" in
+    --update-flux) update_flux=true ;;
+    *)
+      echo "Usage: $0 [--update-flux]" >&2
+      exit 1
+      ;;
+  esac
+done
 
 # https://stackoverflow.com/questions/59895/how-do-i-get-the-directory-where-a-bash-script-is-located-from-within-the-script
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
@@ -16,142 +44,66 @@ cd "${SCRIPT_DIR}"
 # shellcheck source=/dev/null
 source variables.sh
 
-# Set the path for the binaries for the environment running this
-OS="$(uname -o | tr '[:upper:]' '[:lower:]' | sed -e 's%^gnu/%%')"
-ARCH="$(uname -m | sed -e 's/x86_64/amd64/g')"
-BIN_DIR="${SCRIPT_DIR}/bin/${OS}-${ARCH}"
-mkdir -p "${BIN_DIR}"
-export PATH="${BIN_DIR}:${PATH}"
-
-# Check for "kubectl" runtime or install it
-if [[ "$(kubectl version --client=true -o yaml | yq .clientVersion.gitVersion)" != "v${kubectl_version}" ]]; then
-  # install packaged binaries for this arch
-  curl -sLo "${BIN_DIR}/kubectl" "https://dl.k8s.io/release/v${kubectl_version}/bin/${OS}/${ARCH}/kubectl"
-  curl -sLo "${BIN_DIR}/kubectl.sha256" "https://dl.k8s.io/release/v${kubectl_version}/bin/${OS}/${ARCH}/kubectl.sha256"
-  cd "${BIN_DIR}"
-  echo "$(cat kubectl.sha256) kubectl" | sha256sum --check
-  rm -f kubectl.sha256
-  chmod ugo+rx kubectl
-  cd -
+# This script stages and commits files as it goes, so pre-existing changes
+# would either get swept into its commits or leave `git commit` with an empty
+# stage. Bail early instead. (This also catches a previous run that died
+# mid-edit before committing: reset or stash the leftovers, then re-run.)
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "ERROR: working tree not clean. Commit or stash your changes first." >&2
+  exit 1
 fi
 
-# Check for "sops" runtime or install it
-if [[ "$(sops --version | grep -e '^sops' | awk '{print $2}')" != "${sops_version}" ]] ; then
-  curl -sLo "${BIN_DIR}/sops-v${sops_version}.checksums.txt" "https://github.com/getsops/sops/releases/download/v${sops_version}/sops-v${sops_version}.checksums.txt"
-  curl -sLo "${BIN_DIR}/sops-v${sops_version}.${OS}.${ARCH}" "https://github.com/getsops/sops/releases/download/v${sops_version}/sops-v${sops_version}.${OS}.${ARCH}"
-  cd "${BIN_DIR}"
-  FILENAME="sops-v${sops_version}.${OS}.${ARCH}"
-  sha256sum -c <(grep "${FILENAME}" "sops-v${sops_version}.checksums.txt")
-  rm -f "sops-v${sops_version}.checksums.txt"
-  mv "${FILENAME}" sops
-  chmod ugo+rx sops
-  cd -
-fi
-
-# Check for "flux" runtime or install it
-if [[ "$(flux --version | cut -d' ' -f3)" != "${flux_version}" ]] ; then
-  curl -sLo "${BIN_DIR}/flux_${flux_version}_checksums.txt" "https://github.com/fluxcd/flux2/releases/download/v${flux_version}/flux_${flux_version}_checksums.txt"
-  curl -sLo "${BIN_DIR}/flux_${flux_version}_${OS}_${ARCH}.tar.gz" "https://github.com/fluxcd/flux2/releases/download/v${flux_version}/flux_${flux_version}_${OS}_${ARCH}.tar.gz"
-  cd "${BIN_DIR}"
-  FILENAME="flux_${flux_version}_${OS}_${ARCH}.tar.gz"
-  sha256sum -c <(grep "${FILENAME}" "flux_${flux_version}_checksums.txt")
-  tar xvzf "${FILENAME}"
-  rm -f "${FILENAME}" "flux_${flux_version}_checksums.txt"
-  cd -
-fi
-
-# Check for "yq" runtime or install it
-if [[ "$(yq --version | awk '{ print $4 }')" != "v${yq_version}" ]] ; then
-  cd "${BIN_DIR}"
-  wget --no-verbose "https://github.com/mikefarah/yq/releases/download/v${yq_version}/yq_${OS}_${ARCH}.tar.gz" -O - | tar xz
-  wget --no-verbose "https://github.com/mikefarah/yq/releases/download/v${yq_version}/checksums"
-  wget --no-verbose "https://github.com/mikefarah/yq/releases/download/v${yq_version}/checksums_hashes_order"
-  wget --no-verbose "https://github.com/mikefarah/yq/releases/download/v${yq_version}/extract-checksum.sh"
-  chmod +x extract-checksum.sh
-  ./extract-checksum.sh SHA-256 "yq_${OS}_${ARCH}" | rhash -c -
-  mv "yq_${OS}_${ARCH}" yq
-  rm -v checksums checksums_hashes_order extract-checksum.sh
-  cd -
-fi
-
-# Replace project1-dev with cluster_name in all files except this script.
-# Have to use -i.bak because Mac sed is garbage.
-while read -r f; do
-  sed -i.bak "s/project1-dev/${cluster_name}/g" "${f}"
-  rm "${f}.bak"
-  git add "${f}"
-done < <(grep -rIl project1-dev --exclude-dir .git --exclude deploy.sh .)
-
-# This if statement is needed for idempotency. Don't commit and push if there are no changes.
-if ! git diff HEAD --quiet; then
-
-  # Using -n so that SOME PEOPLE'S pre-commit hooks don't freak out and break things. Talking about myself here. I have a large collection of hooks.
-  git commit -nm "Replacing project1-dev with ${cluster_name}"
-
-  git push
-fi
-
-# Checking to see if gotk-sync.yaml has been generated yet...
-# Using image-reflector-controller and image-automation-controller, because they're dope as heck, son! https://fluxcd.io/flux/guides/image-update/
-# --read-write-key is needed by the image-automation-controller
-if [[ "$(cat flux/flux-system/gotk-sync.yaml | wc -l)" == "1" ]]; then
-  case "$git_platform" in
-    github)
-      flux bootstrap github \
-        --components-extra image-reflector-controller,image-automation-controller \
-        --owner="${git_owner}" \
-        --path="${flux_path}" \
-        --read-write-key \
-        --repository="${git_repo}"
-      ;;
-    # https://fluxcd.io/flux/installation/bootstrap/gitlab/
-    gitlab)
-      flux bootstrap gitlab \
-        --components-extra image-reflector-controller,image-automation-controller \
-        --owner="${git_owner}" \
-        --path="${flux_path}" \
-        --read-write-key \
-        --repository="${git_repo}"
-      ;;
-    *)
-      echo 'ERROR: Invalid git_platform.' >&2
-      exit 1
-      ;;
-  esac
-fi
-
+# Start from the latest main so the pushes below don't get rejected mid-run...
 git pull
+# ...and publish anything a previous run committed but failed to push (push is
+# a no-op when the remote is current). Without this, a run that died on its
+# final push would strand that commit locally forever: the re-run may have
+# nothing new to commit, so no later push would happen, while the cluster
+# syncs from a remote that never got the commit.
+git push
 
-# Encrypt all the `*.decrypted` files with your new sops age key:
-while read -r f; do
-  sops --filename-override "${f//.decrypted}" -e "${f}" > "${f//.decrypted}"
-  git add "${f//.decrypted}"
-  git rm "${f}"
-done < <(find . -name '*.decrypted')
-if ! git diff HEAD --quiet; then
-  git commit -nm "Encrypting secrets"
-  git push
+# Bootstrapped detection. The final repo-rewiring commit below does two things
+# at once: it points spec.sync.url at this repo's own remote and stamps the
+# fluxcd-template/bootstrapped annotation. Require BOTH here. The URL alone
+# can misfire: the template's placeholder URL ends in project1-dev, which
+# replace_placeholders.sh rewrites to ${cluster_name}, so a re-run after a
+# mid-bootstrap failure would see devopscoop/${cluster_name} -- which matches
+# ${git_owner}/${git_repo} whenever the owner really is devopscoop and the
+# repo is named after its cluster. The annotation only ever appears in the
+# final wiring commit, so fresh and half-bootstrapped clones can never match.
+# The URL check still earns its keep by tying the sentinel to THIS repo's
+# identity: an already-bootstrapped repo cloned to seed a different repo reads
+# as un-bootstrapped instead of silently skipping the re-wiring.
+#
+# Local deviation from upstream: this cluster syncs over SSH with a deploy key
+# (the flux-system secret holds identity/known_hosts), not the GitHub App
+# method, so the ssh:// form of this repo's URL also counts as bootstrapped.
+# $sync_ssh then makes --update-flux leave the flux-system secret alone (see
+# the githubapp step below) instead of replacing the deploy key.
+bootstrapped=false
+sync_ssh=false
+sync_url="$(yq '.spec.sync.url' flux/flux-system/flux-instance.yaml)"
+if [[ "$sync_url" == "ssh://git@github.com/${git_owner}/${git_repo}" ]]; then
+  sync_ssh=true
+fi
+if [[ "$(yq '.metadata.annotations."fluxcd-template/bootstrapped"' flux/flux-system/flux-instance.yaml)" == "true" \
+   && ( "$sync_url" == "https://github.com/${git_owner}/${git_repo}" || "$sync_ssh" == "true" ) ]]; then
+  bootstrapped=true
+  echo "INFO: repo already bootstrapped; skipping one-time rewrites and converging marker blocks."
 fi
 
-# Add SOPS AGE secret to the cluster
-sops -d flux/flux-system/sops-age.secrets.yaml | kubectl apply -f -
-
-# Add decryption block to gotk-sync.yaml, so that the flux-system Kustomization can decrypt SOPS-encrypted files.
-yq -i '(select(.kind == "Kustomization") | .spec.decryption) = {"provider": "sops", "secretRef": {"name": "sops-age"}}' flux/flux-system/gotk-sync.yaml
-
-git add flux/flux-system/gotk-sync.yaml
-if ! git diff HEAD --quiet; then
-  git commit -nm "Adding decryption to gotk-sync.yaml"
-  git push
-  flux reconcile source git flux-system
-  flux reconcile kustomization flux-system
-fi
-
-# Open the Flux floodgates! Enable everything!
-core_app_list="cert-manager-custom-resources.yaml cert-manager.yaml external-dns.yaml imagepolicies.yaml imagerepositories.yaml imageupdateautomation.yaml ingress-nginx.yaml sops-age.secrets.yaml"
+# Validate everything the bootstrap will need BEFORE any step below mutates or
+# pushes: failing halfway through would strand the repo (some commits already
+# pushed, sync URL possibly already rewired) in a state that needs manual
+# recovery. The lists themselves are consumed by the app-enabling step at the
+# bottom of the script.
+# Observability is the VictoriaMetrics stack (victoria-metrics, victoria-logs,
+# tempo, otel-collector, goalert; cnpg and cnpg-barman-plugin are here
+# because goalert's database and its S3 backups depend on them).
+core_app_list="cert-manager-custom-resources.yaml cert-manager.yaml external-dns.yaml imagepolicies.yaml imagerepositories.yaml imageupdateautomation.yaml sops-age.secrets.yaml cnpg.yaml cnpg-barman-plugin.yaml victoria-metrics-crds.yaml victoria-metrics.yaml victoria-logs.yaml tempo.yaml otel-collector.yaml goalert.yaml eg.yaml eg-custom-resources.yaml"
 case "$k8s_platform" in
   eks)
-    app_list="metrics-server.yaml"
+    app_list="metrics-server.yaml aws-load-balancer-controller.yaml eks-storage-classes.yaml cluster-viewers.yaml karpenter-crd.yaml karpenter.yaml karpenter-custom-resources.yaml opencost.yaml"
     ;;
   k0s)
     app_list="metallb.yaml metallb-custom-resources.yaml rook-ceph.yaml rook-ceph-cluster.yaml"
@@ -164,13 +116,194 @@ case "$k8s_platform" in
     exit 1
     ;;
 esac
-for app in $core_app_list $app_list; do
-  yq -i ".resources = (.resources + [\"${app}\"] | unique)" flux/flux-system/kustomization.yaml
-done
-git add flux/flux-system/kustomization.yaml
-if ! git diff HEAD --quiet; then
-  git commit -nm "Enabling Flux Kustomizations"
-  git push
-  flux reconcile source git flux-system
-  flux reconcile kustomization flux-system
+if [[ "$bootstrapped" == "false" ]]; then
+  for app in $core_app_list $app_list; do
+    # A resources entry pointing at a missing file breaks the whole
+    # flux-system kustomize build once pushed, so refuse to enable one. A
+    # .decrypted staging copy counts: the secrets sweep below encrypts it
+    # into place before the apps are enabled. (sops-age.secrets.yaml is
+    # created by hand pre-deploy, in either form -- see README.md.)
+    if [[ ! -f "flux/flux-system/${app}" && ! -f "flux/flux-system/${app}.decrypted" ]]; then
+      echo "ERROR: flux/flux-system/${app} does not exist; refusing to enable it." >&2
+      exit 1
+    fi
+  done
+fi
+
+# Commit and push whatever this script has staged. Gating on the stage (not
+# the working tree) is what keeps re-runs from committing nothing or aborting.
+commit_and_push() {
+  if ! git diff --cached --quiet; then
+    # Using -n so that SOME PEOPLE'S pre-commit hooks don't freak out and break things. Talking about myself here. I have a large collection of hooks.
+    git commit -nm "$1"
+    git push
+  fi
+}
+
+# Rewrite the template's placeholders (project1-dev, us-east-2, and the
+# hostname and bucket forms built from them) to this cluster's values.
+# replace_placeholders.sh owns the transform and prints each file it changed;
+# the loop stages exactly those, like the toggle_blocks.sh steps below (and a
+# pipe for the same pipefail reason). Deliberately NOT gated on
+# $bootstrapped: apps pulled in from the template after bootstrap ship with
+# the placeholders, so re-runs converge them. A no-op when there are none.
+./replace_placeholders.sh | while read -r f; do git add "$f"; done
+commit_and_push "Replacing template placeholders"
+
+# On EKS, uncomment the eks, karpenter and opencost marker blocks in the app
+# manifests. eks blocks hold EKS-platform config (IRSA serviceAccount
+# annotations, AWS NLB annotations, ...) plus the EKS-only apps' monitoring
+# dashboard entries (aws-load-balancer-controller, metrics-server); karpenter
+# blocks pin spot-intolerant workloads to on-demand nodes via
+# karpenter.sh/capacity-type and hold Karpenter's own dashboards — separate
+# markers because those labels exist only on Karpenter-provisioned nodes,
+# not on EKS nodes in general, and the pinning (or a removed Karpenter's
+# monitoring) can be toggled on its own (toggle_blocks.sh --disable
+# karpenter); opencost blocks hold OpenCost's dashboard, gated like the app
+# itself ($app_list registers opencost.yaml only on eks). On non-EKS
+# platforms none of them apply, so the blocks stay commented.
+# toggle_blocks.sh owns the transform and prints each file it processed;
+# the loop stages exactly those (the git bookkeeping stays in this script,
+# like encrypt_secrets.sh below). A pipe rather than process substitution so
+# pipefail makes a failing toggle_blocks.sh fatal instead of a silent
+# no-op that would leave blocks commented.
+# Deliberately NOT gated on $bootstrapped: an app added after bootstrap ships
+# with its marker blocks still commented, so re-runs converge them. This is
+# safe to repeat -- uncommenting is a no-op for blocks already open, and
+# commit_and_push skips an empty stage.
+if [[ "$k8s_platform" == "eks" ]]; then
+  ./toggle_blocks.sh --enable eks,karpenter,opencost | while read -r f; do git add "$f"; done
+  commit_and_push "Enabling EKS, Karpenter and OpenCost marker blocks"
+fi
+
+# On non-EKS platforms, uncomment the metallb marker blocks: MetalLB's
+# dashboard entry in apps/victoria-metrics. Gated like the app itself
+# ($app_list registers metallb.yaml only on k0s/talos); MetalLB's scrape and
+# rules ship inside apps/metallb, so they need no marker. Opt-in apps'
+# dashboard markers (harbor, longhorn, rook-ceph, coraza, uptime-kuma) are NOT
+# enabled here for the same reason: enable them by hand together with the
+# app. Same converge-on-every-run reasoning as the eks step above.
+if [[ "$k8s_platform" != "eks" ]]; then
+  ./toggle_blocks.sh --enable metallb | while read -r f; do git add "$f"; done
+  commit_and_push "Enabling MetalLB monitoring marker blocks"
+fi
+
+# Uncomment the Alertmanager -> Slack config in apps/victoria-metrics
+# (toggle_blocks.sh finds every slack block repo-wide). values.yaml's block
+# holds the non-secret routing config; the channel and webhook URL live in
+# its helm_secrets.yaml.decrypted, which gets SOPS-encrypted further down
+# during bootstrap. Like the eks step above, this runs on every invocation
+# so later-added apps get their blocks opened too.
+# ${var:-} so set -u doesn't kill the script on a variables.sh from before this
+# variable existed.
+if [[ "${slack_alerts:-false}" == "true" ]]; then
+  ./toggle_blocks.sh --enable slack | while read -r f; do git add "$f"; done
+  commit_and_push "Enabling Alertmanager Slack notifications"
+fi
+
+if [[ "$update_flux" == "true" ]]; then
+  flux-operator install -f "${SCRIPT_DIR}/flux/flux-system/flux-instance.yaml"
+
+  # --app-private-key-file wants a *plaintext* PEM path. $GITHUB_APP_PRIVATE_KEY
+  # holds the decrypted key (variables.sh), so feed it via process substitution
+  # rather than writing it to disk -- same pattern as --age-key-file below.
+  # printf '%s\n' restores the trailing newline command substitution stripped.
+  # Skipped while sync is over SSH: this would overwrite the deploy-key secret
+  # Flux pulls with, and source-controller would lose access to the repo.
+  if [[ "$sync_ssh" == "true" ]]; then
+    echo "INFO: sync URL is ssh://; leaving the flux-system deploy-key secret untouched." >&2
+  else
+    flux-operator create secret githubapp flux-system \
+      --namespace=flux-system \
+      --app-id="$GITHUB_APP_ID" \
+      --app-installation-id="$GITHUB_APP_INSTALLATION_ID" \
+      --app-private-key-file=<(printf '%s\n' "$GITHUB_APP_PRIVATE_KEY")
+  fi
+fi
+
+if [[ "$bootstrapped" == "false" ]]; then
+  # Encrypt the `*.yaml.decrypted` files with the new sops age key.
+  # encrypt_secrets.sh owns the crypto: it skips apps/templates/ (scaffolding
+  # for deploy_new_app.sh, not a real secret), re-encrypts unconditionally so
+  # the *current* .sops.yaml recipients apply, and removes the plaintext from
+  # disk. Bootstrap only adds the git bookkeeping. `git add -A` is exact here:
+  # the script refused to start on a dirty tree and every step above commits
+  # what it stages, so the only changes at this point are the new ciphertexts
+  # and the plaintext deletions (the template *tracks* its .decrypted
+  # boilerplate, so those deletions must be staged too, not just rm'ed).
+  ./encrypt_secrets.sh
+  git add -A
+  commit_and_push "Encrypting secrets"
+elif find . -not -path '*/templates/*' -name '*.decrypted' | grep -q .; then
+  # Encryption only runs during bootstrap (a re-run must not surprise-commit),
+  # but don't silently leave plaintext secrets sitting on disk either.
+  echo "WARNING: *.decrypted files found; run ./encrypt_secrets.sh to encrypt them." >&2
+fi
+
+# Create the flux-system/sops-age secret, so flux has the keys to decrypt secrets.
+# --age-key-file wants a *plaintext* age identity file. $SOPS_AGE_KEY already
+# holds the decrypted identity (variables.sh), so feed it via process
+# substitution rather than pointing at the encrypted keys.txt on disk.
+# printf '%s\n' (not echo) writes the key verbatim, regardless of shell/content.
+if [[ "$update_flux" == "true" ]]; then
+  flux-operator create secret sops sops-age \
+    --namespace=flux-system \
+    --age-key-file <(printf '%s\n' "$SOPS_AGE_KEY")
+fi
+
+if [[ "$bootstrapped" == "false" ]]; then
+  # Add decryption block, so that the flux-system Kustomization can decrypt
+  # SOPS-encrypted files. Match by content rather than position: patches[0]
+  # isn't necessarily the decryption patch once update_flux-instance.sh has
+  # added its image-pin and resource patches.
+  if ! yq '.spec.kustomize.patches[].patch' "${SCRIPT_DIR}/flux/flux-system/flux-instance.yaml" | grep -q '/spec/decryption'; then
+    yq -i '.spec.kustomize.patches += [{"patch": "- op: add\n  path: /spec/decryption\n  value:\n    provider: sops\n    secretRef:\n      name: sops-age\n", "target": {"kind": "Kustomization"}}]' "${SCRIPT_DIR}/flux/flux-system/flux-instance.yaml"
+  fi
+
+  # Prefix all Flux Kustomization spec.path values with ${flux_path}/ so they
+  # resolve from the repo root. Strip-then-prepend (rather than split) so
+  # re-runs converge and paths containing ${flux_path}/ twice don't get mangled.
+  while read -r f; do
+    yq -i 'select(.kind == "Kustomization").spec.path |= ("'"${flux_path}"'/" + sub("^'"${flux_path}"'/", ""))' "${f}"
+    git add "${f}"
+  done < <(find flux/flux-system -name "*.yaml" -not -name "kustomization.yaml")
+  yq -i '.spec.update.path |= ("'"${flux_path}"'/" + sub("^'"${flux_path}"'/", ""))' flux/flux-system/imageupdateautomation.yaml
+  git add flux/flux-system/imageupdateautomation.yaml
+
+  # Open the Flux floodgates! Enable everything! ($core_app_list, $app_list,
+  # and the files they name are validated near the top of the script.)
+  for app in $core_app_list $app_list; do
+    yq -i ".resources = (.resources + [\"${app}\"] | unique)" flux/flux-system/kustomization.yaml
+  done
+  git add flux/flux-system/kustomization.yaml
+
+  # Add sync section so flux knows where to find its code, and stamp the
+  # bootstrapped annotation (the sentinel checked at the top). This is the
+  # LAST edit, and everything from the decryption patch to here lands in ONE
+  # commit: the annotation flips the sentinel, so no repo rewrite may come
+  # after it. A run that dies before this commit re-runs as un-bootstrapped;
+  # one that dies after it is repo-side complete, and a re-run with
+  # --update-flux re-asserts the cluster side.
+  yq -i "
+    .metadata.annotations.\"fluxcd-template/bootstrapped\" = \"true\" |
+    .spec.sync.kind = \"GitRepository\" |
+    .spec.sync.url = \"https://github.com/${git_owner}/${git_repo}\" |
+    .spec.sync.ref = \"refs/heads/main\" |
+    .spec.sync.path = \"${flux_path}/flux\" |
+    .spec.sync.pullSecret = \"flux-system\" |
+    .spec.sync.provider = \"github\"
+    " "${SCRIPT_DIR}/flux/flux-system/flux-instance.yaml"
+  git add "${SCRIPT_DIR}/flux/flux-system/flux-instance.yaml"
+
+  commit_and_push "Wiring Flux sync and decryption; enabling apps"
+
+  if [[ "$update_flux" == "true" ]]; then
+    flux-operator install -f "${SCRIPT_DIR}/flux/flux-system/flux-instance.yaml"
+  fi
+  # flux reconcile source git flux-system
+  # flux reconcile kustomization flux-system
+fi
+
+if [[ "$update_flux" == "false" ]]; then
+  echo "INFO: skipped the flux-operator steps (Flux install and secrets); re-run with --update-flux to apply flux-instance.yaml and the secrets to the cluster."
 fi

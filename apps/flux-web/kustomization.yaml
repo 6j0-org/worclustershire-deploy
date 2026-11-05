@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: flux-system
+
+resources:
+  - flux-web.yaml
+  # SSO through apps/dex, which must be deployed first — see
+  # oidc-securitypolicy.yaml and apps/dex/README.md.
+  - oidc-securitypolicy.yaml
+  - eg-oidc-client.secrets.yaml

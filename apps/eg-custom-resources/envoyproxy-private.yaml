@@ -5,13 +5,34 @@
 # is the internet-facing counterpart. On non-AWS platforms the two are
 # identical until you express the split with your LB provider's equivalent.
 #
-# High availability (both schemes): put one Envoy per AZ/node and keep every LB
-# node's address live in DNS.
-#   - replicas: 3 with soft zone + hostname topology spread (maxSkew 1). Envoy
+# High availability (both schemes): put one Envoy per AZ/node and keep every NLB
+# AZ node's IP live in DNS.
+#   - replicas: 3 with zone + hostname topology spread (maxSkew 1). Envoy
 #     Gateway sets no spread by default, and declaring our own DISABLES the
 #     kube-scheduler cluster defaults (which cover both zone AND hostname), so
-#     both keys are restated here, tightened to maxSkew 1. ScheduleAnyway keeps
-#     pods placeable during a zone/node capacity crunch.
+#     both keys are restated here, tightened to maxSkew 1. The two keys differ
+#     in strictness on purpose:
+#       * hostname is DoNotSchedule — one Envoy per node, enforced. Surviving
+#         the loss of a node is the whole point of replicas + a PDB, and a
+#         soft constraint does not deliver it: ScheduleAnyway only SCORES
+#         placement, so a bin-packing autoscaler (Karpenter consolidation) may
+#         collapse the entire fleet onto one node, and an involuntary loss of
+#         that node then takes the whole Gateway down — the exact outage the
+#         rest of this file's HA config exists to prevent. Seen in dev: all
+#         three eg-public replicas consolidated onto a single node, while
+#         eg-private happened to stay spread. A PDB does not help here; it
+#         bounds voluntary disruptions only.
+#       * zone stays ScheduleAnyway — a hard zone rule would let an AZ outage
+#         (or an AZ with no capacity) block scheduling outright, trading a
+#         rare correlated failure for a common one. Best-effort per-AZ on top
+#         of enforced per-node is the right split.
+#     Cost of the hard hostname rule: a replica stays Pending whenever no node
+#     is free of its siblings. With a node autoscaler that is precisely the
+#     signal to add a node — Karpenter provisions one and it self-resolves,
+#     while the surviving replicas keep serving. On a FIXED, small node pool
+#     (a non-Karpenter k0s/talos cluster with fewer nodes than replicas) it
+#     does NOT self-resolve: lower replicas to the node count, or put this one
+#     key back to ScheduleAnyway.
 #   - matchLabelKeys (owning-gateway-name): scope each constraint to a SINGLE
 #     Gateway's pods. Every Gateway on this class runs its own Envoy fleet;
 #     without this key the managed-by/name selector spans ALL fleets, so the
@@ -21,6 +42,22 @@
 #     single Gateway, so it is safe to set always. GA on k8s 1.34+.
 #   - envoyPDB caps voluntary disruptions (node drains/updates) at one Envoy at
 #     a time so a drain can't take the ingress below two replicas.
+#   - envoyDeployment.patch repoints the envoy container's probes (startup,
+#     readiness, liveness) from Envoy's admin readiness (/ready on 19003) to
+#     GET /healthz on 10080 — the same through-the-full-filter-chain check
+#     the LB health-check annotations below use. /ready only proves xDS
+#     config arrived and listeners are up; it stays green while the filter
+#     chain rejects every request — e.g. a fail-closed wasm filter (coraza)
+#     whose module fetch from the controller failed, a state that otherwise
+#     persists until a pod delete or a config re-push happens to retrigger
+#     the fetch. Probing /healthz instead makes such a replica go NotReady
+#     (dropping it from endpoints, which also deregisters it from ip-target
+#     LBs) and then restarts it via liveness — self-healing instead of an
+#     operator page. Only each probe's path/port are patched; counts and
+#     timings keep Envoy Gateway's defaults, whose startup probe allows
+#     30×10s for the first config and wasm fetch to land before liveness
+#     arms. This makes the port-80 listener + healthz route a requirement on
+#     EVERY platform, not just EKS where the health-check annotations apply.
 #
 # The aws-load-balancer-* annotations below are EKS-specific (AWS Load Balancer
 # Controller), so they live in eks marker blocks that deploy.sh uncomments only
@@ -64,17 +101,40 @@ spec:
   # delete/recreate. Getting stuck the other way round is what forced the
   # recreate this time.
   ipFamily: IPv4
+  # Tag-extraction rules for the coraza WAF's wasm counters (apps/coraza).
+  # The plugin encodes its labels INTO the stat name
+  # (waf_filter.tx.interruptions_ruleid=920350_phase=http_request_headers...);
+  # without these bootstrap stats_tags regexes carving them back out, every
+  # (rule, phase) pair becomes a distinct metric NAME — unqueryable, and the
+  # worst kind of cardinality. With them, the proxies expose
+  # waf_filter_tx_interruptions{rule_id=,phase=,...} and waf_filter_tx_total,
+  # which apps/coraza/vm.yaml and the WAF dashboard read, and
+  # `sum by (rule_id) (increase(waf_filter_tx_interruptions[24h]))` replaces
+  # the log-grep loop apps/coraza/README.md prescribes for rule tuning.
+  # Regexes are upstream's own (coraza-proxy-wasm 0.6.0
+  # example/envoy/envoy-config.yaml — re-check when bumping apps/coraza).
+  # type Merge APPENDS to the bootstrap's existing stats_tags list (Envoy
+  # Gateway's template ships four tags of its own) rather than replacing it;
+  # harmless when coraza is disabled, since the regexes then match nothing.
+  bootstrap:
+    type: Merge
+    value: |
+      stats_config:
+        stats_tags:
+          - tag_name: phase
+            regex: "(_phase=([a-z_]+))"
+          - tag_name: rule_id
+            regex: "(_ruleid=([0-9]+))"
+          - tag_name: identifier
+            regex: "(_identifier=([0-9a-z.:]+))"
+          - tag_name: owner
+            regex: "(_owner=([0-9a-z.:]+))"
+          - tag_name: authority
+            regex: "(_authority=([0-9a-z.:]+))"
   provider:
     type: Kubernetes
     kubernetes:
       envoyDeployment:
-        # EG v1.9.2's built-in Envoy is still v1.39.1, which has CVE-2026-35189
-        # and GHSA-8vc2-jrm4-835w / GHSA-47vj-9r25-wv5j; the release notes say to
-        # override it to >= v1.39.3. Setting it here is the only override that
-        # takes effect, because an attached EnvoyProxy without mergeType replaces
-        # the Helm-generated default. Drop this once EG's default catches up.
-        container:
-          image: docker.io/envoyproxy/envoy:distroless-v1.39.4
         replicas: 3
         pod:
           topologySpreadConstraints:
@@ -89,6 +149,9 @@ spec:
                   app.kubernetes.io/name: envoy
             - maxSkew: 1
               topologyKey: kubernetes.io/hostname
+              # Upstream sets DoNotSchedule here (see header). This cluster is a
+              # fixed 3-node pool with no autoscaler and 3 replicas, so a hard
+              # rule leaves every rollout's surge pod Pending: kept soft.
               whenUnsatisfiable: ScheduleAnyway
               matchLabelKeys:
                 - gateway.envoyproxy.io/owning-gateway-name
@@ -96,6 +159,30 @@ spec:
                 matchLabels:
                   app.kubernetes.io/managed-by: envoy-gateway
                   app.kubernetes.io/name: envoy
+        # Probes through the filter chain instead of admin /ready — rationale
+        # in the header. StrategicMerge matches containers by name and merges
+        # per-field, so only each probe's httpGet path/port change; every
+        # other probe field keeps Envoy Gateway's default.
+        patch:
+          type: StrategicMerge
+          value:
+            spec:
+              template:
+                spec:
+                  containers:
+                    - name: envoy
+                      startupProbe:
+                        httpGet:
+                          path: /healthz
+                          port: 10080
+                      readinessProbe:
+                        httpGet:
+                          path: /healthz
+                          port: 10080
+                      livenessProbe:
+                        httpGet:
+                          path: /healthz
+                          port: 10080
       envoyPDB:
         maxUnavailable: 1
 # >>> eks: deploy.sh uncomments this block when k8s_platform=eks

@@ -19,6 +19,7 @@ resources:
   - longhorn-httproute.yaml
   - longhorn-auth-policy.yaml
   - longhorn-recurring-backup.yaml
+  - vm.yaml
 configMapGenerator:
   - name: longhorn-values
     files:
