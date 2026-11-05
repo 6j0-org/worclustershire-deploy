@@ -54,5 +54,12 @@ export SOPS_AGE_KEY=$(age -d "${sops_dir}/keys.txt")
 # Not exported: deploy.sh sources this file, and keeping it out of the
 # environment means child processes can't read it from their env.
 # SCRIPT_DIR is set by deploy.sh before it sources this file.
+# This cluster syncs over SSH (see deploy.sh), so no App key is committed yet;
+# decrypt only when the file exists, or sourcing this aborts deploy.sh (set -e).
+github_app_key_file="${SCRIPT_DIR}/github-app.private-key.pem.age"
 # shellcheck disable=SC2034 # consumed by deploy.sh, which sources this file
-GITHUB_APP_PRIVATE_KEY=$(age -d -i <(printf '%s\n' "$SOPS_AGE_KEY") "${SCRIPT_DIR}/furlai-dev-infra-flux.2026-05-05.private-key.pem.age")
+GITHUB_APP_PRIVATE_KEY=""
+# shellcheck disable=SC2034 # consumed by deploy.sh, which sources this file
+if [[ -f "$github_app_key_file" ]]; then
+  GITHUB_APP_PRIVATE_KEY=$(age -d -i <(printf '%s\n' "$SOPS_AGE_KEY") "$github_app_key_file")
+fi

@@ -7,6 +7,8 @@ metadata:
     # Never let kustomize-controller prune this object: the operator's finalizer
     # uninstalls every Flux component when the FluxInstance is deleted.
     kustomize.toolkit.fluxcd.io/prune: disabled
+    # Sentinel deploy.sh checks to skip the one-time bootstrap rewrites.
+    fluxcd-template/bootstrapped: "true"
   name: flux
   namespace: flux-system
 spec:

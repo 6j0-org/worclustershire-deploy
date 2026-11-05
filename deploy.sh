@@ -74,9 +74,20 @@ git push
 # The URL check still earns its keep by tying the sentinel to THIS repo's
 # identity: an already-bootstrapped repo cloned to seed a different repo reads
 # as un-bootstrapped instead of silently skipping the re-wiring.
+#
+# Local deviation from upstream: this cluster syncs over SSH with a deploy key
+# (the flux-system secret holds identity/known_hosts), not the GitHub App
+# method, so the ssh:// form of this repo's URL also counts as bootstrapped.
+# $sync_ssh then makes --update-flux leave the flux-system secret alone (see
+# the githubapp step below) instead of replacing the deploy key.
 bootstrapped=false
+sync_ssh=false
+sync_url="$(yq '.spec.sync.url' flux/flux-system/flux-instance.yaml)"
+if [[ "$sync_url" == "ssh://git@github.com/${git_owner}/${git_repo}" ]]; then
+  sync_ssh=true
+fi
 if [[ "$(yq '.metadata.annotations."fluxcd-template/bootstrapped"' flux/flux-system/flux-instance.yaml)" == "true" \
-   && "$(yq '.spec.sync.url' flux/flux-system/flux-instance.yaml)" == "https://github.com/${git_owner}/${git_repo}" ]]; then
+   && ( "$sync_url" == "https://github.com/${git_owner}/${git_repo}" || "$sync_ssh" == "true" ) ]]; then
   bootstrapped=true
   echo "INFO: repo already bootstrapped; skipping one-time rewrites and converging marker blocks."
 fi
@@ -197,11 +208,17 @@ if [[ "$update_flux" == "true" ]]; then
   # holds the decrypted key (variables.sh), so feed it via process substitution
   # rather than writing it to disk -- same pattern as --age-key-file below.
   # printf '%s\n' restores the trailing newline command substitution stripped.
-  flux-operator create secret githubapp flux-system \
-    --namespace=flux-system \
-    --app-id="$GITHUB_APP_ID" \
-    --app-installation-id="$GITHUB_APP_INSTALLATION_ID" \
-    --app-private-key-file=<(printf '%s\n' "$GITHUB_APP_PRIVATE_KEY")
+  # Skipped while sync is over SSH: this would overwrite the deploy-key secret
+  # Flux pulls with, and source-controller would lose access to the repo.
+  if [[ "$sync_ssh" == "true" ]]; then
+    echo "INFO: sync URL is ssh://; leaving the flux-system deploy-key secret untouched." >&2
+  else
+    flux-operator create secret githubapp flux-system \
+      --namespace=flux-system \
+      --app-id="$GITHUB_APP_ID" \
+      --app-installation-id="$GITHUB_APP_INSTALLATION_ID" \
+      --app-private-key-file=<(printf '%s\n' "$GITHUB_APP_PRIVATE_KEY")
+  fi
 fi
 
 if [[ "$bootstrapped" == "false" ]]; then
