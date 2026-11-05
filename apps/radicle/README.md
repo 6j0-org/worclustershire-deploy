@@ -54,7 +54,7 @@ timeout 5 bash -c 'exec 3<>/dev/tcp/<public-address>/8776' && echo open || echo 
 **Two files have to agree on one hostname:**
 
 - `config.json` → `node.externalAddresses` — what the node advertises over gossip.
-- `tcproute.yaml` → the `external-dns.alpha.kubernetes.io/hostname` annotation — what gets a record pointing at the Gateway's load balancer.
+- `tcproute.yaml` → the `external-dns.kubernetes.io/hostname` annotation — what gets a record pointing at the Gateway's load balancer.
 
 Both are `radicle.6j0.org` on this cluster. If they disagree, peers get an address that does not resolve to this node and inbound replication silently never happens.
 
