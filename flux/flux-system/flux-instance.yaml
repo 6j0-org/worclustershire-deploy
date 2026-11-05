@@ -16,7 +16,7 @@ spec:
     # Exact version pin — disables the operator's automatic Flux updates.
     # Run ./update_flux-instance.sh to bump this together with the
     # digest-pinned controller images in kustomize.patches below.
-    version: "2.9.6"
+    version: "2.10.0"
     registry: "ghcr.io/fluxcd"
     artifact: "oci://ghcr.io/controlplaneio-fluxcd/flux-operator-manifests"
   components:
@@ -67,49 +67,49 @@ spec:
       - patch: |
           - op: replace
             path: /spec/template/spec/containers/0/image
-            value: "ghcr.io/fluxcd/source-controller:v1.9.6@sha256:6a6693172589f8ff26123a231d5fa6ceb194a6efb4dc647cdf057c959f76a2e3"
+            value: "ghcr.io/fluxcd/source-controller:v1.10.1@sha256:611b6bca3eae95bcff471414d1fb14a4ab83d7f14e609cccef2bd389c121f37e"
         target:
           kind: Deployment
           name: source-controller
       - patch: |
           - op: replace
             path: /spec/template/spec/containers/0/image
-            value: "ghcr.io/fluxcd/source-watcher:v2.2.4@sha256:86743f5a4cd4ea76b9722eb86222d56e8253e776daa0565ecb186ec68ad1d835"
+            value: "ghcr.io/fluxcd/source-watcher:v2.3.1@sha256:cb94a51b0f7a433fd5610b5f3cd8eb06ba7d70c656a3594dfe19f656ee996d96"
         target:
           kind: Deployment
           name: source-watcher
       - patch: |
           - op: replace
             path: /spec/template/spec/containers/0/image
-            value: "ghcr.io/fluxcd/kustomize-controller:v1.9.6@sha256:2ebeaa341da77d52b6abbbba5efcee0450d47f8b42f0e6f33b08f9020262d606"
+            value: "ghcr.io/fluxcd/kustomize-controller:v1.10.1@sha256:37db29b25dae35b881a5e064acedb0cc954442da453a39eaa0eab7a90dbecc4e"
         target:
           kind: Deployment
           name: kustomize-controller
       - patch: |
           - op: replace
             path: /spec/template/spec/containers/0/image
-            value: "ghcr.io/fluxcd/helm-controller:v1.6.5@sha256:0d52fff5c4d476277b8fcb6beb9041e269adb5db943fe69f5a806ea0c92b1511"
+            value: "ghcr.io/fluxcd/helm-controller:v1.7.1@sha256:54526cc6ed1202d71d44c310676448065664f3255ad671d9a69ac26f904e617a"
         target:
           kind: Deployment
           name: helm-controller
       - patch: |
           - op: replace
             path: /spec/template/spec/containers/0/image
-            value: "ghcr.io/fluxcd/notification-controller:v1.9.4@sha256:840f318265ee26f0d2c48a158bf7896b22aa4e998e320a18646309f0e40b15da"
+            value: "ghcr.io/fluxcd/notification-controller:v1.10.0@sha256:9f58b9532ec9d3ccf539cd3ccdf283477a5dcb7777b922db5477d8bbd4d3767c"
         target:
           kind: Deployment
           name: notification-controller
       - patch: |
           - op: replace
             path: /spec/template/spec/containers/0/image
-            value: "ghcr.io/fluxcd/image-reflector-controller:v1.2.5@sha256:c83ce5c06fed9ebb308cd5165bd144ee934c720f6b47e0da2180869092063c82"
+            value: "ghcr.io/fluxcd/image-reflector-controller:v1.3.0@sha256:b4d2cbdc1b7a046c53786628fe900b72b31a95c4cec219478777e3f97c453635"
         target:
           kind: Deployment
           name: image-reflector-controller
       - patch: |
           - op: replace
             path: /spec/template/spec/containers/0/image
-            value: "ghcr.io/fluxcd/image-automation-controller:v1.2.5@sha256:e1a2720d3951694609c39635886d5dcb15b7dffe0b8248461c6693539c522a28"
+            value: "ghcr.io/fluxcd/image-automation-controller:v1.3.0@sha256:6ec488320def72fecfd01ab1289cc6c881d76b984fbbcf69b174e1e10886029e"
         target:
           kind: Deployment
           name: image-automation-controller
