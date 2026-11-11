@@ -6,7 +6,6 @@
 # The game server is the single authority for the world: never run more than
 # one replica.
 workloadType: "StatefulSet"
-
 statefulSet:
   volumeClaimTemplates:
   - metadata:
@@ -16,14 +15,11 @@ statefulSet:
       resources:
         requests:
           storage: 1Gi
-
 replicaCount: 1
-
 # Built from the Dockerfile in the game repo.
 image:
   repository: registry.gitlab.com/6j0-org/game
-  tag: "fd9f2905" # {"$imagepolicy": "flux-system:game:tag"}
-
+  tag: "dev-7f837d7a-1794439827" # {"$imagepolicy": "flux-system:game:tag"}
 # The image runs as `node` (1000). fsGroup makes the Longhorn PVC writable.
 podSecurityContext:
   runAsUser: 1000
@@ -35,13 +31,11 @@ securityContext:
   allowPrivilegeEscalation: false
   capabilities:
     drop:
-      - ALL
-
+    - ALL
 # PORT, HOST and DATA_DIR are set in the image. TLS is terminated at the
 # gateway, so the page is https and browsers allow the voice-chat microphone.
 service:
   port: 8000
-
 # The client opens a WebSocket on the same origin (/ws); Envoy Gateway
 # passes the upgrade through on a plain PathPrefix route.
 httpRoute:
@@ -56,11 +50,9 @@ httpRoute:
     - path:
         type: PathPrefix
         value: /
-
 volumeMounts:
-  - name: data
-    mountPath: /data
-
+- name: data
+  mountPath: /data
 resources:
   requests:
     cpu: 100m
