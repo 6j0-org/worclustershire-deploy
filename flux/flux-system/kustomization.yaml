@@ -32,6 +32,7 @@ resources:
   # - timetracker.yaml
   # - peertube.yaml
   - gathio.yaml # Ships its own MongoDB; see apps/gathio/README.md.
+  - shopping-list.yaml # SQLite on a PVC; image built from the shopping-list repo.
   # - mobilizon.yaml # CNPG with PostGIS; see apps/mobilizon/README.md.
 
   # - radicle.yaml

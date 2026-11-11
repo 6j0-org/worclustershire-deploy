@@ -1,0 +1,76 @@
+# dyff between <(yq . <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1)) <(yq eval '. * load("values.yaml")' <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1))
+# vim -O <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1) values.yaml
+
+# The app keeps everything (list, pantry, barcode and recipe caches) in one
+# SQLite file at /data/shopping.db, so this is a StatefulSet with a PVC rather
+# than a Deployment. SQLite is single-writer: keep replicaCount at 1.
+workloadType: "StatefulSet"
+
+statefulSet:
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/6j0-org/shopping-list
+  tag: "0.1.0"
+
+# The image runs as uid 10001; fsGroup makes the PVC writable by it.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+service:
+  port: 8000
+
+# No auth: the app has no accounts and this route is public, so anyone with the
+# URL can read and edit the list. Add a SecurityPolicy (see apps/timetracker)
+# to put a shared password in front of it.
+httpRoute:
+  enabled: true
+  parentRefs:
+  - name: eg-public
+    namespace: envoy-gateway-system
+  hostnames:
+  - shopping-list.6j0.org
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+
+# Like gathio: the PVC volume comes from the volumeClaimTemplate, so "data" is
+# mounted here but not listed under volumes:. /tmp is the only other writable
+# path the read-only root filesystem needs.
+volumes:
+  - name: tmp
+    emptyDir: {}
+volumeMounts:
+  - name: data
+    mountPath: /data
+  - name: tmp
+    mountPath: /tmp
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    memory: 256Mi

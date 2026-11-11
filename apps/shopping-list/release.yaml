@@ -1,0 +1,15 @@
+# https://fluxcd.io/flux/components/helm/helmreleases/
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: shopping-list
+spec:
+  interval: 10m
+  valuesFrom:
+    - kind: ConfigMap
+      name: shopping-list-values
+    - kind: Secret
+      name: shopping-list-secrets
+  chartRef:
+    kind: OCIRepository
+    name: devopscoop-app
