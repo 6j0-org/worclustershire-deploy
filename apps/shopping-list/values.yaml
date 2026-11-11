@@ -20,7 +20,7 @@ replicaCount: 1
 
 image:
   repository: registry.gitlab.com/6j0-org/shopping-list
-  tag: "35b6cc9f"
+  tag: "35b6cc9f" # {"$imagepolicy": "flux-system:shopping-list:tag"}
 
 # The image runs as uid 10001; fsGroup makes the PVC writable by it.
 podSecurityContext:
