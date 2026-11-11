@@ -1,0 +1,69 @@
+# dyff between <(yq . <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1)) <(yq eval '. * load("values.yaml")' <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1))
+# vim -O <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1) values.yaml
+
+# The world, accounts and every player's save are JSON files in /data
+# (DATA_DIR), so this is a StatefulSet with a PVC rather than a Deployment.
+# The game server is the single authority for the world: never run more than
+# one replica.
+workloadType: "StatefulSet"
+
+statefulSet:
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi
+
+replicaCount: 1
+
+# Built from the Dockerfile in the game repo.
+image:
+  repository: ghcr.io/6j0-org/game
+  tag: "0.1.0"
+
+# The image runs as `node` (1000). fsGroup makes the Longhorn PVC writable.
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# PORT, HOST and DATA_DIR are set in the image. TLS is terminated at the
+# gateway, so the page is https and browsers allow the voice-chat microphone.
+service:
+  port: 8000
+
+# The client opens a WebSocket on the same origin (/ws); Envoy Gateway
+# passes the upgrade through on a plain PathPrefix route.
+httpRoute:
+  enabled: true
+  parentRefs:
+  - name: eg-public
+    namespace: envoy-gateway-system
+  hostnames:
+  - game.6j0.org
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+
+volumeMounts:
+  - name: data
+    mountPath: /data
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
