@@ -5,7 +5,6 @@
 # SQLite file at /data/shopping.db, so this is a StatefulSet with a PVC rather
 # than a Deployment. SQLite is single-writer: keep replicaCount at 1.
 workloadType: "StatefulSet"
-
 statefulSet:
   volumeClaimTemplates:
   - metadata:
@@ -15,13 +14,10 @@ statefulSet:
       resources:
         requests:
           storage: 1Gi
-
 replicaCount: 1
-
 image:
   repository: registry.gitlab.com/6j0-org/shopping-list
-  tag: "35b6cc9f" # {"$imagepolicy": "flux-system:shopping-list:tag"}
-
+  tag: "dev-f8a8c3e2-1794440316" # {"$imagepolicy": "flux-system:shopping-list:tag"}
 # The image runs as uid 10001; fsGroup makes the PVC writable by it.
 podSecurityContext:
   runAsNonRoot: true
@@ -30,16 +26,13 @@ podSecurityContext:
   fsGroup: 10001
   seccompProfile:
     type: RuntimeDefault
-
 securityContext:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
   capabilities:
     drop: ["ALL"]
-
 service:
   port: 8000
-
 # No auth: the app has no accounts and this route is public, so anyone with the
 # URL can read and edit the list. Add a SecurityPolicy (see apps/timetracker)
 # to put a shared password in front of it.
@@ -55,19 +48,17 @@ httpRoute:
     - path:
         type: PathPrefix
         value: /
-
 # Like gathio: the PVC volume comes from the volumeClaimTemplate, so "data" is
 # mounted here but not listed under volumes:. /tmp is the only other writable
 # path the read-only root filesystem needs.
 volumes:
-  - name: tmp
-    emptyDir: {}
+- name: tmp
+  emptyDir: {}
 volumeMounts:
-  - name: data
-    mountPath: /data
-  - name: tmp
-    mountPath: /tmp
-
+- name: data
+  mountPath: /data
+- name: tmp
+  mountPath: /tmp
 resources:
   requests:
     cpu: 10m
