@@ -19,7 +19,7 @@ statefulSet:
 replicaCount: 1
 
 image:
-  repository: ghcr.io/6j0-org/shopping-list
+  repository: registry.gitlab.com/6j0-org/shopping-list
   tag: "0.1.0"
 
 # The image runs as uid 10001; fsGroup makes the PVC writable by it.

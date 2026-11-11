@@ -21,7 +21,7 @@ replicaCount: 1
 
 # Built from the Dockerfile in the game repo.
 image:
-  repository: ghcr.io/6j0-org/game
+  repository: registry.gitlab.com/6j0-org/game
   tag: "0.1.0"
 
 # The image runs as `node` (1000). fsGroup makes the Longhorn PVC writable.
