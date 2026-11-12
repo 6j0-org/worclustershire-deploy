@@ -19,7 +19,7 @@ replicaCount: 1
 # Built from the Dockerfile in the game repo.
 image:
   repository: registry.gitlab.com/6j0-org/game
-  tag: "dev-52708c1d-1794459050" # {"$imagepolicy": "flux-system:game:tag"}
+  tag: "dev-fa735d59-1794460540" # {"$imagepolicy": "flux-system:game:tag"}
 # The image runs as `node` (1000). fsGroup makes the Longhorn PVC writable.
 podSecurityContext:
   runAsUser: 1000
