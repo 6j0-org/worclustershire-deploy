@@ -20,6 +20,15 @@ spec:
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
 metadata:
+  name: bored
+  namespace: flux-system
+spec:
+  image: registry.gitlab.com/6j0-org/bored
+  interval: 1m0s
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
   name: shopping-list
   namespace: flux-system
 spec:

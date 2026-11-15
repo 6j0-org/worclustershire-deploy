@@ -35,6 +35,7 @@ resources:
   - shopping-list.yaml # SQLite on a PVC; image built from the shopping-list repo.
   # - mobilizon.yaml # CNPG with PostGIS; see apps/mobilizon/README.md.
   - game.yaml # Game server (game.6j0.org); saves on a PVC. See apps/game/values.yaml.
+  - bored.yaml # Bored? event board (bored.6j0.org); SQLite on a PVC. See apps/bored/values.yaml.
 
   # - radicle.yaml
   # - wiki.yaml

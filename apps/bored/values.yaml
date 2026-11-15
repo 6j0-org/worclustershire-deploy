@@ -1,0 +1,69 @@
+# dyff between <(yq . <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1)) <(yq eval '. * load("values.yaml")' <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1))
+# vim -O <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1) values.yaml
+
+# Bored? (local event board). Everything (accounts, passkey public keys,
+# posts, encrypted vaults and chats) is one SQLite database in /data
+# (DB_PATH), so this is a StatefulSet with a PVC rather than a Deployment.
+# Never run more than one replica: SQLite is single-writer, and passkey
+# challenges live in process memory, so a second pod would break sign-in.
+workloadType: "StatefulSet"
+statefulSet:
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi
+replicaCount: 1
+# Built from the Dockerfile in the bored repo. "latest" only until the first
+# dev-<sha>-<time> tag is published; image automation then takes over.
+image:
+  repository: registry.gitlab.com/6j0-org/bored
+  tag: "latest" # {"$imagepolicy": "flux-system:bored:tag"}
+# The image runs as `node` (1000) and writes only to /data. fsGroup makes the
+# Longhorn PVC writable.
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+    - ALL
+# PORT and DB_PATH are set in the image.
+service:
+  port: 3000
+# Passkeys are bound to this origin, and an https ORIGIN turns on Secure
+# cookies. Without it the server trusts the Host/X-Forwarded-Proto headers.
+# Changing the hostname orphans every existing passkey.
+envConfigMap:
+  ORIGIN: "https://bored.6j0.org"
+httpRoute:
+  enabled: true
+  parentRefs:
+  - name: eg-public
+    namespace: envoy-gateway-system
+  hostnames:
+  - bored.6j0.org
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+volumeMounts:
+- name: data
+  mountPath: /data
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
