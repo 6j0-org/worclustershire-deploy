@@ -4,7 +4,9 @@
 # Glaze Journal (pottery glaze catalog and firing log). Journals are
 # end-to-end encrypted in the browser with a key derived from the 6j0.org
 # app key, so the server only stores ciphertext: one SQLite database plus
-# encrypted photo files, all in /data (DATA_DIR). That makes this a
+# encrypted photo files, all in /data (DATA_DIR). The exception is public
+# manufacturer product images, kept unencrypted in one shared cache
+# (/data/products). That makes this a
 # StatefulSet with a PVC rather than a Deployment. Never run more than one
 # replica: SQLite is single-writer.
 workloadType: "StatefulSet"
@@ -17,7 +19,8 @@ statefulSet:
       resources:
         requests:
           # Mostly photos (resized to 1800px JPEGs in the browser before
-          # they're encrypted, typically a few hundred KB each).
+          # they're encrypted, typically a few hundred KB each) and the
+          # shared product image cache.
           storage: 5Gi
 replicaCount: 1
 # Built from the Dockerfile in the glaze-journal repo. "latest" only until the
@@ -72,11 +75,11 @@ httpRoute:
 volumeMounts:
 - name: data
   mountPath: /data
-# Catalog responses are cached in memory, and product images (up to 15 MiB)
-# pass through as base64 on their way to the browser to be encrypted.
+# Catalog responses are cached in memory. Product images go to a shared
+# cache on the PVC (/data/products), not through memory.
 resources:
   requests:
     cpu: 10m
     memory: 64Mi
   limits:
-    memory: 384Mi
+    memory: 256Mi
