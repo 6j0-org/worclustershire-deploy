@@ -1,0 +1,82 @@
+# dyff between <(yq . <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1)) <(yq eval '. * load("values.yaml")' <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1))
+# vim -O <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1) values.yaml
+
+# Glaze Journal (pottery glaze catalog and firing log). Journals are
+# end-to-end encrypted in the browser with a key derived from the 6j0.org
+# app key, so the server only stores ciphertext: one SQLite database plus
+# encrypted photo files, all in /data (DATA_DIR). That makes this a
+# StatefulSet with a PVC rather than a Deployment. Never run more than one
+# replica: SQLite is single-writer.
+workloadType: "StatefulSet"
+statefulSet:
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          # Mostly photos (resized to 1800px JPEGs in the browser before
+          # they're encrypted, typically a few hundred KB each).
+          storage: 5Gi
+replicaCount: 1
+# Built from the Dockerfile in the glaze-journal repo. "latest" only until the
+# first dev-<sha>-<time> tag is published; image automation then takes over.
+image:
+  repository: registry.gitlab.com/6j0-org/glaze-journal
+  tag: "latest" # {"$imagepolicy": "flux-system:glaze-journal:tag"}
+# The image runs as `node` (1000) and writes only to /data. fsGroup makes the
+# Longhorn PVC writable.
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+    - ALL
+# PORT and DATA_DIR are set in the image.
+service:
+  port: 3000
+# An https ORIGIN turns on Secure cookies.
+#
+# People sign in with their 6j0.org identity (apps/id); there is no other
+# sign-in. ID_APP must match this app's name in apps/id's APPS, and it is also
+# part of the app key derivation: renaming it makes every journal unreadable.
+# The JWKS is fetched over the in-cluster Service rather than through the
+# public gateway. The server also fetches public manufacturer product pages
+# and catalogs (Mayco, Amaco, Free Form Clay, ...) over the internet.
+envConfigMap:
+  ORIGIN: "https://glaze.6j0.org"
+  ID_ORIGIN: "https://id.6j0.org"
+  ID_APP: "glaze-journal"
+  ID_JWKS_URL: "http://id.id.svc.cluster.local:4000/.well-known/jwks.json"
+httpRoute:
+  enabled: true
+  parentRefs:
+  - name: eg-public
+    namespace: envoy-gateway-system
+  hostnames:
+  - glaze.6j0.org
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+volumeMounts:
+- name: data
+  mountPath: /data
+# Catalog responses are cached in memory, and product images (up to 15 MiB)
+# pass through as base64 on their way to the browser to be encrypted.
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    memory: 384Mi
