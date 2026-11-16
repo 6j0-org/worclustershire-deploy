@@ -36,6 +36,7 @@ resources:
   # - mobilizon.yaml # CNPG with PostGIS; see apps/mobilizon/README.md.
   - game.yaml # Game server (game.6j0.org); saves on a PVC. See apps/game/values.yaml.
   - bored.yaml # Bored? event board (bored.6j0.org); SQLite on a PVC. See apps/bored/values.yaml.
+  - glaze-journal.yaml # Glaze Journal (glaze.6j0.org); encrypted journals in SQLite on a PVC. See apps/glaze-journal/values.yaml.
   - id.yaml # 6j0.org identity (id.6j0.org): shared passkey sign-in + per-app keys for 6j0.org apps. See apps/id/values.yaml.
 
   # - radicle.yaml

@@ -54,7 +54,7 @@ envConfigMap:
   # Apps allowed to sign in, as name=origin. The name is the token audience
   # and part of the app's key derivation: never rename or reuse one, or that
   # app's data becomes unreadable. Each app sets ID_APP to its name here.
-  APPS: "bored=https://bored.6j0.org"
+  APPS: "bored=https://bored.6j0.org,glaze-journal=https://glaze.6j0.org"
 httpRoute:
   enabled: true
   parentRefs:

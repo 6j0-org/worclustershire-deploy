@@ -29,6 +29,15 @@ spec:
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
 metadata:
+  name: glaze-journal
+  namespace: flux-system
+spec:
+  image: registry.gitlab.com/6j0-org/glaze-journal
+  interval: 1m0s
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
   name: id
   namespace: flux-system
 spec:
