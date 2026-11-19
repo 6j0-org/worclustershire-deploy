@@ -44,17 +44,13 @@ service:
 # An https ORIGIN turns on Secure cookies; without it the server trusts the
 # Host/X-Forwarded-Proto headers.
 #
-# AUTH_MODE=6j0: people sign in with their 6j0.org identity (apps/id) instead
-# of Bored?'s own passkeys, so one passkey covers every 6j0.org app. ID_APP
-# must match this app's name in apps/id's APPS. The JWKS is fetched over the
-# in-cluster Service rather than through the public gateway. Switching
-# AUTH_MODE after launch strands existing accounts: the modes don't share them.
+# AUTH_MODE=local: Bored? runs its own passkeys (RP ID = the ORIGIN hostname,
+# bored.6j0.org) rather than signing people in through the 6j0.org identity
+# (apps/id). Switching AUTH_MODE strands existing accounts: the modes don't
+# share them.
 envConfigMap:
   ORIGIN: "https://bored.6j0.org"
-  AUTH_MODE: "6j0"
-  ID_ORIGIN: "https://id.6j0.org"
-  ID_APP: "bored"
-  ID_JWKS_URL: "http://id.id.svc.cluster.local:4000/.well-known/jwks.json"
+  AUTH_MODE: "local"
 httpRoute:
   enabled: true
   parentRefs:
