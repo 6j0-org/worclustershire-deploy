@@ -27,7 +27,7 @@ replicaCount: 1
 # first dev-<sha>-<time> tag is published; image automation then takes over.
 image:
   repository: registry.gitlab.com/6j0-org/glaze-journal
-  tag: "dev-0428f590-1795136058" # {"$imagepolicy": "flux-system:glaze-journal:tag"}
+  tag: "dev-753caa99-1795139267" # {"$imagepolicy": "flux-system:glaze-journal:tag"}
 # The image runs as `node` (1000) and writes only to /data. fsGroup makes the
 # Longhorn PVC writable.
 podSecurityContext:
