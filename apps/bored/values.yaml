@@ -49,7 +49,11 @@ service:
 # must match this app's name in apps/id's APPS. The JWKS is fetched over the
 # in-cluster Service rather than through the public gateway. Switching
 # AUTH_MODE after launch strands existing accounts: the modes don't share them.
+#
+# TZ: the server's clock, for when "New posts in Discover" notifications go
+# out (DISCOVER_NEWS_HOURS, default 10:00 and 16:00).
 envConfigMap:
+  TZ: "America/Los_Angeles"
   ORIGIN: "https://bored.6j0.org"
   AUTH_MODE: "6j0"
   ID_ORIGIN: "https://id.6j0.org"
