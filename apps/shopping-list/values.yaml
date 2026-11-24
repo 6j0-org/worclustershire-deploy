@@ -33,9 +33,26 @@ securityContext:
     drop: ["ALL"]
 service:
   port: 8000
-# No auth: the app has no accounts and this route is public, so anyone with the
-# URL can read and edit the list. Add a SecurityPolicy (see apps/timetracker)
-# to put a shared password in front of it.
+# An https ORIGIN turns on Secure cookies.
+#
+# People sign in with their 6j0.org identity (apps/id); there is no other
+# sign-in, and the server won't start without ID_ORIGIN. ID_APP must match
+# this app's name in apps/id's APPS; never rename it. The JWKS is fetched over
+# the in-cluster Service rather than through the public gateway.
+#
+# There's one list, shared by the identities in ALLOWED_SUBS (6j0.org subs,
+# comma- or space-separated). Empty means nobody can use the list; anyone who
+# signs in sees their ID on the "This list is private" page, and the server
+# logs it. Any signed-in identity can use Feedback; ADMIN_SUB can close and
+# delete anyone's feedback (it doesn't get the list unless it's also in
+# ALLOWED_SUBS). Subs aren't secrets, so they can live here.
+envConfigMap:
+  ORIGIN: "https://shopping-list.6j0.org"
+  ID_ORIGIN: "https://id.6j0.org"
+  ID_APP: "shopping-list"
+  ID_JWKS_URL: "http://id.id.svc.cluster.local:4000/.well-known/jwks.json"
+  # ALLOWED_SUBS: ""
+  # ADMIN_SUB: ""
 httpRoute:
   enabled: true
   parentRefs:
