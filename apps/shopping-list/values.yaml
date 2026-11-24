@@ -17,7 +17,7 @@ statefulSet:
 replicaCount: 1
 image:
   repository: registry.gitlab.com/6j0-org/shopping-list
-  tag: "dev-acbccaf6-1795493880" # {"$imagepolicy": "flux-system:shopping-list:tag"}
+  tag: "dev-28083178-1795496327" # {"$imagepolicy": "flux-system:shopping-list:tag"}
 # The image runs as uid 10001; fsGroup makes the PVC writable by it.
 podSecurityContext:
   runAsNonRoot: true
