@@ -10,9 +10,10 @@
 #
 # longhorn-crypto-global-dangerous keeps a single replica, which suits a
 # cache: losing it only costs a slower run. Its reclaimPolicy is Retain, so
-# deleting this PVC leaves its Longhorn volume behind to delete by hand. 1Gi
-# leaves little room beside the osv.dev database; if a run fails with
-# ENOSPC, expand the PVC (the storage class allows it).
+# deleting this PVC leaves its Longhorn volume behind to delete by hand.
+# 2Gi because the first run wrote about 900 MiB, most of it the osv.dev
+# database. If a run fails with ENOSPC, expand it again (the storage class
+# allows it), or drop osvVulnerabilityAlerts in config.json5.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -23,4 +24,4 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi
+      storage: 2Gi
