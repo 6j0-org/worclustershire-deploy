@@ -1,0 +1,21 @@
+# The recipe generator has no sign-in of its own: only the shopping list's
+# pods may reach it. Selects on the chart's selector labels
+# (app.kubernetes.io/instance is the HelmRelease name).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: recipegen
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: recipegen
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: shopping-list
+      ports:
+        - protocol: TCP
+          port: 8001
