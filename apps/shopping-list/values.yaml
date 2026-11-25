@@ -1,7 +1,7 @@
 # dyff between <(yq . <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1)) <(yq eval '. * load("values.yaml")' <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1))
 # vim -O <(helm show values oci://registry.gitlab.com/devopscoop/charts/app --version 0.11.1) values.yaml
 
-# The app keeps everything (list, pantry, barcode and recipe caches) in one
+# The app keeps everything (lists, pantries, the recipe book, barcode cache) in one
 # SQLite file at /data/shopping.db, so this is a StatefulSet with a PVC rather
 # than a Deployment. SQLite is single-writer: keep replicaCount at 1.
 workloadType: "StatefulSet"
@@ -51,6 +51,9 @@ envConfigMap:
   ID_ORIGIN: "https://id.6j0.org"
   ID_APP: "shopping-list"
   ID_JWKS_URL: "http://id.id.svc.cluster.local:4000/.well-known/jwks.json"
+  # The recipe generator (recipegen-values.yaml), for "Suggest meals".
+  # Unset, the button is hidden.
+  RECIPEGEN_URL: "http://recipegen:8001"
   # ALLOWED_SUBS: ""
   # ADMIN_SUB: ""
 httpRoute:

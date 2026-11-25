@@ -94,6 +94,22 @@ spec:
   policy:
     numerical:
       order: asc
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: recipegen
+  namespace: flux-system
+spec:
+  filterTags:
+    extract: $ts
+    pattern: ^dev-[a-f0-9]+-(?P<ts>[0-9]+)
+  imageRepositoryRef:
+    name: recipegen
+    namespace: flux-system
+  policy:
+    numerical:
+      order: asc
 # ---
 # apiVersion: image.toolkit.fluxcd.io/v1
 # kind: ImagePolicy
