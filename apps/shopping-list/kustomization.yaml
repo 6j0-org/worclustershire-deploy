@@ -11,16 +11,10 @@ resources:
   - namespace.yaml
   - ocirepo.yaml
   - release.yaml
-  - generate-httproute.yaml
-  - recipegen-release.yaml
-  - recipegen-netpol.yaml
 configMapGenerator:
   - name: shopping-list-values
     files:
       - values.yaml=values.yaml
-  - name: recipegen-values
-    files:
-      - values.yaml=recipegen-values.yaml
 secretGenerator:
   - name: shopping-list-secrets
     files:

@@ -11,8 +11,7 @@ spec:
   path: apps/shopping-list
   prune: true
   wait: true
-  # Long enough for a node's first pull of the recipe generator's image (~2 GB).
-  timeout: 10m0s
+  timeout: 5m0s
   decryption:
     provider: sops
     secretRef:
