@@ -1,0 +1,52 @@
+// Global config, shared by every account's run. Repo-level options set here
+// are the defaults for every repo the app is installed on, so repos need no
+// renovate.json of their own. A repo that adds one overrides these.
+{
+  platform: "github",
+  // Each run's installation token sees only that account's installation, so
+  // autodiscover covers exactly the repos the app is installed on there.
+  autodiscover: true,
+  // No onboarding PRs: Renovate works on every installed repo straight away,
+  // using only this config.
+  onboarding: false,
+  requireConfig: "optional",
+  // Keep each repo's cache and clone on the cache volume, so later runs
+  // fetch less.
+  repositoryCache: "enabled",
+  persistRepoData: true,
+
+  // --- Defaults for every repo ---
+  // Turns on the Dependency Dashboard issue, among much else.
+  extends: ["config:recommended"],
+  // Dashboard-only: a PR opens only after its box is ticked on the
+  // dashboard, except for the patch updates below and security fixes.
+  dependencyDashboardApproval: true,
+  // Assigns each PR to the CODEOWNERS of the files it changes.
+  assigneesFromCodeOwners: true,
+  // A weekly refresh of every lock file, by default before 04:00 UTC on
+  // Mondays.
+  lockFileMaintenance: { enabled: true },
+  // Holds each update until the release is 7 days old, longer than the 3
+  // days Renovate's security presets use, so a malicious or pulled release
+  // is likely caught first. An update whose registry gives no release date
+  // is held until the option is removed. Security fixes skip the wait and
+  // the dashboard.
+  minimumReleaseAge: "7 days",
+  // Finds security fixes in osv.dev's database too, besides GitHub's
+  // alerts. Experimental. The database (81 MiB, 575 MiB unpacked) is kept
+  // on the cache volume and refreshed once a day.
+  osvVulnerabilityAlerts: true,
+  // Pins container images and GitHub Actions to digests, so a moved tag
+  // can't change what runs.
+  pinDigests: true,
+  packageRules: [
+    {
+      // Patch updates (x.y.Z) skip the dashboard: Renovate opens the PR on
+      // its own, once the release is 7 days old, and merges it when every
+      // status check passes. In this deploy repo, merging to main deploys.
+      matchUpdateTypes: ["patch"],
+      dependencyDashboardApproval: false,
+      automerge: true,
+    },
+  ],
+}

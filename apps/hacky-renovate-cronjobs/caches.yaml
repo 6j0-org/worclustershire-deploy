@@ -1,0 +1,26 @@
+# One cache volume, shared by every account's renovate-* step to save disk.
+# The steps run one at a time, so they never write it at once. It holds the
+# repo clones, Renovate's per-repo state and lookup caches, one copy of
+# osv.dev's database (about 660 MiB), and package-manager caches (Go modules,
+# Gradle, pip, npm). Those last ones hold code that later runs execute, so
+# sharing them lets a malicious build in one account's repo plant code that
+# runs during another account's step, with that account's token. That risk
+# is accepted: README.md, "Isolation". Deleting the volume only makes the
+# next run slower.
+#
+# longhorn-crypto-global-dangerous keeps a single replica, which suits a
+# cache: losing it only costs a slower run. Its reclaimPolicy is Retain, so
+# deleting this PVC leaves its Longhorn volume behind to delete by hand. 1Gi
+# leaves little room beside the osv.dev database; if a run fails with
+# ENOSPC, expand the PVC (the storage class allows it).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: renovate-cache
+spec:
+  storageClassName: longhorn-crypto-global-dangerous
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

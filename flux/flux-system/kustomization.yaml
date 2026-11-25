@@ -38,6 +38,7 @@ resources:
   - bored.yaml # Bored? event board (bored.6j0.org); SQLite on a PVC. See apps/bored/values.yaml.
   - glaze-journal.yaml # Glaze Journal (glaze.6j0.org); encrypted journals in SQLite on a PVC. See apps/glaze-journal/values.yaml.
   - id.yaml # 6j0.org identity (id.6j0.org): shared passkey sign-in + per-app keys for 6j0.org apps. See apps/id/values.yaml.
+  - hacky-renovate-cronjobs.yaml # Renovate for devopscoop, 6j0-org, and 3uzbcqje, one isolated step per account. See apps/hacky-renovate-cronjobs/README.md.
 
   # - radicle.yaml
   # - wiki.yaml

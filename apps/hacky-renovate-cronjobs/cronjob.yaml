@@ -1,0 +1,277 @@
+# Runs Renovate for each GitHub account the app is installed on, one account
+# after another, as a chain of init containers. Each account gets two steps:
+#
+#   token-<account>     mints the account's installation token, just before
+#                       its run (mint-token.mjs). Mounts the app's private key.
+#   renovate-<account>  runs Renovate with that token (run-renovate.sh). Runs
+#                       package-manager commands from the repos it updates, so
+#                       it sees only its own account's token volume.
+#
+# Each account has its own token volume (run-<account>). The steps run one at
+# a time, and every process in a step is gone before the next starts. So code
+# run during one account's step can't read another account's token, which
+# isn't minted yet. All accounts share one cache volume (caches.yaml), to save
+# disk; that's an accepted risk: README.md, "Isolation".
+#
+# A failed step doesn't stop the accounts after it. The report container runs
+# last and fails the Job if any account failed.
+#
+# To add an account: copy both of an account's init containers, its run-*
+# volume, and its /results mount in the report container, replacing the
+# account name everywhere. The steps run in the order listed. Container and
+# volume names must be lowercase, so Some-Org becomes some-org there; the
+# argument to each script is the login as GitHub shows it.
+#
+# The image tag is set once, in kustomization.yaml's images list.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: renovate
+spec:
+  # Hourly on weekdays, at 33 minutes past, in UTC. A box ticked on a repo's
+  # dependency dashboard is acted on by the next run. README.md shows how to
+  # start a run by hand.
+  schedule: "33 * * * 1-5"
+  # A run that takes longer than an hour makes the next scheduled one skip,
+  # instead of two runs sharing the cache volume.
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      # The next scheduled run is the retry.
+      backoffLimit: 0
+      # A backstop for a stuck run. Each account's Renovate step is already
+      # cut off after 55 minutes, when its token expires, so raise this if
+      # the accounts together need longer.
+      activeDeadlineSeconds: 14400
+      template:
+        spec:
+          restartPolicy: Never
+          # Nothing here talks to the Kubernetes API.
+          automountServiceAccountToken: false
+          enableServiceLinks: false
+          securityContext:
+            runAsNonRoot: true
+            # The image's own user. fsGroup makes the cache volume writable
+            # for it.
+            runAsUser: 12021
+            fsGroup: 12021
+            seccompProfile:
+              type: RuntimeDefault
+          initContainers:
+            # --- devopscoop ---
+            - name: token-devopscoop
+              image: ghcr.io/renovatebot/renovate
+              command: [node, /etc/renovate/mint-token.mjs, devopscoop]
+              envFrom:
+                - configMapRef:
+                    name: renovate-github-app
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  memory: 128Mi
+              volumeMounts:
+                - name: renovate
+                  mountPath: /etc/renovate
+                  readOnly: true
+                - name: github-app
+                  mountPath: /github-app
+                  readOnly: true
+                - name: run-devopscoop
+                  mountPath: /run/renovate
+            - name: renovate-devopscoop
+              image: ghcr.io/renovatebot/renovate
+              command: [bash, /etc/renovate/run-renovate.sh, devopscoop]
+              env:
+                - name: RENOVATE_CONFIG_FILE
+                  value: /etc/renovate/config.json5
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]
+              # Renovate's memory grows with the size of the repos it scans.
+              # No CPU limit, so a run is never throttled.
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 1Gi
+                limits:
+                  memory: 4Gi
+              volumeMounts:
+                - name: renovate
+                  mountPath: /etc/renovate
+                  readOnly: true
+                - name: run-devopscoop
+                  mountPath: /run/renovate
+                - name: cache
+                  mountPath: /tmp/renovate
+            # --- 6j0-org ---
+            - name: token-6j0-org
+              image: ghcr.io/renovatebot/renovate
+              command: [node, /etc/renovate/mint-token.mjs, 6j0-org]
+              envFrom:
+                - configMapRef:
+                    name: renovate-github-app
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  memory: 128Mi
+              volumeMounts:
+                - name: renovate
+                  mountPath: /etc/renovate
+                  readOnly: true
+                - name: github-app
+                  mountPath: /github-app
+                  readOnly: true
+                - name: run-6j0-org
+                  mountPath: /run/renovate
+            - name: renovate-6j0-org
+              image: ghcr.io/renovatebot/renovate
+              command: [bash, /etc/renovate/run-renovate.sh, 6j0-org]
+              env:
+                - name: RENOVATE_CONFIG_FILE
+                  value: /etc/renovate/config.json5
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]
+              # Renovate's memory grows with the size of the repos it scans.
+              # No CPU limit, so a run is never throttled.
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 1Gi
+                limits:
+                  memory: 4Gi
+              volumeMounts:
+                - name: renovate
+                  mountPath: /etc/renovate
+                  readOnly: true
+                - name: run-6j0-org
+                  mountPath: /run/renovate
+                - name: cache
+                  mountPath: /tmp/renovate
+            # --- 3uzbcqje ---
+            - name: token-3uzbcqje
+              image: ghcr.io/renovatebot/renovate
+              command: [node, /etc/renovate/mint-token.mjs, 3uzbcqje]
+              envFrom:
+                - configMapRef:
+                    name: renovate-github-app
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  memory: 128Mi
+              volumeMounts:
+                - name: renovate
+                  mountPath: /etc/renovate
+                  readOnly: true
+                - name: github-app
+                  mountPath: /github-app
+                  readOnly: true
+                - name: run-3uzbcqje
+                  mountPath: /run/renovate
+            - name: renovate-3uzbcqje
+              image: ghcr.io/renovatebot/renovate
+              command: [bash, /etc/renovate/run-renovate.sh, 3uzbcqje]
+              env:
+                - name: RENOVATE_CONFIG_FILE
+                  value: /etc/renovate/config.json5
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]
+              # Renovate's memory grows with the size of the repos it scans.
+              # No CPU limit, so a run is never throttled.
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 1Gi
+                limits:
+                  memory: 4Gi
+              volumeMounts:
+                - name: renovate
+                  mountPath: /etc/renovate
+                  readOnly: true
+                - name: run-3uzbcqje
+                  mountPath: /run/renovate
+                - name: cache
+                  mountPath: /tmp/renovate
+          containers:
+            - name: report
+              image: ghcr.io/renovatebot/renovate
+              command: [bash, /etc/renovate/report.sh]
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  memory: 64Mi
+              volumeMounts:
+                - name: renovate
+                  mountPath: /etc/renovate
+                  readOnly: true
+                - name: run-devopscoop
+                  mountPath: /results/devopscoop
+                  readOnly: true
+                - name: run-6j0-org
+                  mountPath: /results/6j0-org
+                  readOnly: true
+                - name: run-3uzbcqje
+                  mountPath: /results/3uzbcqje
+                  readOnly: true
+          volumes:
+            # config.json5 and the scripts, from kustomization.yaml.
+            - name: renovate
+              configMap:
+                name: renovate
+            # The app's private key. Only the token-* steps mount it.
+            - name: github-app
+              secret:
+                secretName: renovate-github-app # pragma: allowlist secret — the Secret's name, not a value
+                items:
+                  - key: private-key
+                    path: private-key
+            # Shared by every account's renovate-* step (caches.yaml).
+            - name: cache
+              persistentVolumeClaim:
+                claimName: renovate-cache
+            # --- devopscoop ---
+            # In memory, so the token never reaches disk.
+            - name: run-devopscoop
+              emptyDir:
+                medium: Memory
+                sizeLimit: 1Mi
+            # --- 6j0-org ---
+            # In memory, so the token never reaches disk.
+            - name: run-6j0-org
+              emptyDir:
+                medium: Memory
+                sizeLimit: 1Mi
+            # --- 3uzbcqje ---
+            # In memory, so the token never reaches disk.
+            - name: run-3uzbcqje
+              emptyDir:
+                medium: Memory
+                sizeLimit: 1Mi
