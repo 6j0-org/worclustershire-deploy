@@ -5,23 +5,21 @@
 #                       its run (mint-token.mjs). Mounts the app's private key.
 #   renovate-<account>  runs Renovate with that token (run-renovate.sh). Runs
 #                       package-manager commands from the repos it updates, so
-#                       it sees only its own account's volumes.
+#                       it sees only its own account's token volume.
 #
-# Each account has its own token volume (run-<account>) and cache volume
-# (cache-<account>, caches.yaml). The steps run one at a time, and every
-# process in a step is gone before the next starts. So code run during one
-# account's step can't read another account's token, which isn't minted yet,
-# or plant anything in another account's cache. A step can still reach its
-# own account's token: README.md, "Isolation".
+# Each account has its own token volume (run-<account>). The steps run one at
+# a time, and every process in a step is gone before the next starts. So code
+# run during one account's step can't read another account's token, which
+# isn't minted yet. All accounts share one cache volume (caches.yaml), to save
+# disk; that's an accepted risk: README.md, "Isolation".
 #
 # A failed step doesn't stop the accounts after it. The report container runs
 # last and fails the Job if any account failed.
 #
-# To add an account: copy both of an account's init containers, its two
-# volumes, its /results mount in the report container, and its PVC in
-# caches.yaml, replacing the account name everywhere. The steps run in the
-# order listed. Container, volume, and
-# PVC names must be lowercase, so Some-Org becomes some-org there; the
+# To add an account: copy both of an account's init containers, its run-*
+# volume, and its /results mount in the report container, replacing the
+# account name everywhere. The steps run in the order listed. Container and
+# volume names must be lowercase, so Some-Org becomes some-org there; the
 # argument to each script is the login as GitHub shows it.
 #
 # The image tag is set once, in kustomization.yaml's images list.
@@ -35,7 +33,7 @@ spec:
   # start a run by hand.
   schedule: "33 * * * 1-5"
   # A run that takes longer than an hour makes the next scheduled one skip,
-  # instead of two runs sharing the cache volumes.
+  # instead of two runs sharing the cache volume.
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
@@ -53,7 +51,7 @@ spec:
           enableServiceLinks: false
           securityContext:
             runAsNonRoot: true
-            # The image's own user. fsGroup makes the cache volumes writable
+            # The image's own user. fsGroup makes the cache volume writable
             # for it.
             runAsUser: 12021
             fsGroup: 12021
@@ -110,7 +108,7 @@ spec:
                   readOnly: true
                 - name: run-devopscoop
                   mountPath: /run/renovate
-                - name: cache-devopscoop
+                - name: cache
                   mountPath: /tmp/renovate
             # --- 6j0-org ---
             - name: token-6j0-org
@@ -162,7 +160,7 @@ spec:
                   readOnly: true
                 - name: run-6j0-org
                   mountPath: /run/renovate
-                - name: cache-6j0-org
+                - name: cache
                   mountPath: /tmp/renovate
             # --- 3uzbcqje ---
             - name: token-3uzbcqje
@@ -214,7 +212,7 @@ spec:
                   readOnly: true
                 - name: run-3uzbcqje
                   mountPath: /run/renovate
-                - name: cache-3uzbcqje
+                - name: cache
                   mountPath: /tmp/renovate
           containers:
             - name: report
@@ -255,30 +253,25 @@ spec:
                 items:
                   - key: private-key
                     path: private-key
+            # Shared by every account's renovate-* step (caches.yaml).
+            - name: cache
+              persistentVolumeClaim:
+                claimName: renovate-cache
             # --- devopscoop ---
             # In memory, so the token never reaches disk.
             - name: run-devopscoop
               emptyDir:
                 medium: Memory
                 sizeLimit: 1Mi
-            - name: cache-devopscoop
-              persistentVolumeClaim:
-                claimName: renovate-cache-devopscoop
             # --- 6j0-org ---
             # In memory, so the token never reaches disk.
             - name: run-6j0-org
               emptyDir:
                 medium: Memory
                 sizeLimit: 1Mi
-            - name: cache-6j0-org
-              persistentVolumeClaim:
-                claimName: renovate-cache-6j0-org
             # --- 3uzbcqje ---
             # In memory, so the token never reaches disk.
             - name: run-3uzbcqje
               emptyDir:
                 medium: Memory
                 sizeLimit: 1Mi
-            - name: cache-3uzbcqje
-              persistentVolumeClaim:
-                claimName: renovate-cache-3uzbcqje

@@ -2,11 +2,21 @@
 
 [Renovate](https://docs.renovatebot.com/) for several GitHub accounts from one GitHub App: devopscoop, 6j0-org, and 3uzbcqje. A CronJob runs the official Renovate image for each account in turn, each walled off from the others (see "Isolation"). It lives only in this repo, not in the fluxcd template; `apps/renovate` is the template's single-account version, synced from upstream and not deployed here. Every hour on weekdays, at 33 minutes past in UTC, a Job starts one pod, which works through each account's repos and exits. Nothing runs between runs.
 
-New repos default to dashboard-only mode. Renovate opens a PR for an update only after someone ticks its box on the repo's Dependency Dashboard issue, and assigns it to the code owners of the files it changes, from the repo's `CODEOWNERS` file. Lock file maintenance is on too: every Monday before 04:00 UTC the dashboard offers one PR that refreshes every lock file in the repo. Renovate holds back an update until its release is 7 days old, and offers to pin container images and GitHub Actions to digests, so a moved tag can't change what runs.
+Every repo the app is installed on gets the same settings, from `config.json5`, with no onboarding PR and no `renovate.json` needed. Patch updates (x.y.Z) are automatic: Renovate opens the PR and merges it once every status check passes. In this repo, merging to `main` deploys. Every other update waits on the repo's Dependency Dashboard issue: Renovate opens its PR only after someone ticks its box there, and assigns it to the code owners of the files it changes, from the repo's `CODEOWNERS` file. Lock file maintenance is on too: every Monday before 04:00 UTC the dashboard offers one PR that refreshes every lock file in the repo. Renovate holds back an update until its release is 7 days old, and offers to pin container images and GitHub Actions to digests, so a moved tag can't change what runs.
 
 Security fixes skip both the wait and the dashboard: Renovate opens them on its own as soon as it finds them, from GitHub's vulnerability alerts and from [osv.dev](https://osv.dev/)'s database.
 
-The global config is `config.json5`. It's shared by every account; repo-level options belong in each repo's `renovate.json`.
+The global config is `config.json5`. It's shared by every account, and its repo-level options are the defaults for every repo. A repo that needs something different can add its own `renovate.json`, which overrides them.
+
+## Accepted security risk: shared cache
+
+**Accepted on 2026-11-24 to save disk on this cluster.** All accounts share one cache volume (`caches.yaml`) instead of one each.
+
+The cache holds more than code. Besides repo clones, it holds package-manager caches (Go modules, Gradle, pip wheels, npm), and later runs execute what's in them. Renovate also runs code from the repos it updates (see "Isolation"). So a malicious commit or dependency in any repo of any account could plant code in the shared cache. That code would then run during another account's step, later in the same run or in the next one, with that account's installation token: Contents, Workflows, and Pull requests write access to every repo the app is installed on there, for up to an hour.
+
+What still holds: each account's token stays out of reach of the other accounts' steps, and the private key stays out of every Renovate step. Leaking repo contents through the cache isn't a concern, since most of the code is open source.
+
+To close the risk, give each account its own cache volume again: a PVC per account in `caches.yaml`, a `cache-<account>` volume per account in `cronjob.yaml`, and each `renovate-<account>` step mounting its own at `/tmp/renovate`. Each account then needs its own copy of the osv.dev database, about 660 MiB.
 
 ## Setup
 
@@ -42,11 +52,11 @@ To start a run without waiting for the schedule, for example right after ticking
 kubectl -n hacky-renovate-cronjobs create job --from=cronjob/renovate "renovate-manual-$(date +%s)"
 ```
 
-The first run opens a "Configure Renovate" PR in each repo. Merging it adds the repo's `renovate.json` and creates the dashboard issue. To let Renovate open PRs on its own in a repo, remove `dependencyDashboardApproval` from that repo's `renovate.json`.
+The first run creates the dashboard issue in each repo and opens PRs for any patch updates. Renovate merges a patch PR only when every status check passes, and a branch protection rule that requires a review blocks it unless the app may bypass the rule.
 
 ## Adding or removing an account
 
-Each account has a block in `cronjob.yaml` (its `token-<account>` and `renovate-<account>` init containers, its `run-<account>` and `cache-<account>` volumes, and its `/results/<account>` mount in the `report` container) and a PVC in `caches.yaml`. To add one, copy an existing account's pieces and replace the name. Names must be lowercase there (`some-org`); the argument to each script is the login as GitHub shows it (`Some-Org`). Each step finds its account's installation by the login, so there's no installation ID to record. An account that installed the app but has no block is never touched.
+Each account has a block in `cronjob.yaml` (its `token-<account>` and `renovate-<account>` init containers, its `run-<account>` volume, and its `/results/<account>` mount in the `report` container). To add one, copy an existing account's pieces and replace the name. Names must be lowercase there (`some-org`); the argument to each script is the login as GitHub shows it (`Some-Org`). Each step finds its account's installation by the login, so there's no installation ID to record. An account that installed the app but has no block is never touched.
 
 ## How a run works
 
@@ -61,11 +71,11 @@ An installation token expires after one hour, and Renovate can't mint one from t
 
 ## Isolation
 
-Renovate runs package-manager commands from the repos it updates, and some of them run code from the repo: Gradle build scripts and wrappers, a `Gemfile`, and Python source packages built during lock-file updates. (npm, Yarn, and pnpm install scripts are skipped by default.) The chain keeps that code from reaching another account:
+Renovate runs package-manager commands from the repos it updates, and some of them run code from the repo: Gradle build scripts and wrappers, a `Gemfile`, and Python source packages built during lock-file updates. (npm, Yarn, and pnpm install scripts are skipped by default.) The chain keeps that code away from other accounts' tokens, but not from their caches:
 
 - **Tokens.** While one account's Renovate step runs, the later accounts' tokens aren't minted yet. Each step mounts only its own account's token volume.
 - **Nothing outlives a step.** Every process in an init container is gone before the next one starts, so nothing can wait for a later account's token.
-- **Caches.** Each account has its own cache volume, so one account's run can't plant code that another's runs.
+- **Caches are shared, an accepted risk.** Every account's step uses one cache volume, so code planted there by one account's run can run during another account's step. See "Accepted security risk: shared cache".
 - **The private key** is mounted only in the `token-*` steps, which run no code from repos.
 - **No Kubernetes credentials.** The pod has no service account token.
 
