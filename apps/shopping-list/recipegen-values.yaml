@@ -13,7 +13,7 @@
 replicaCount: 1
 image:
   repository: registry.gitlab.com/6j0-org/shopping-list/recipegen
-  tag: "dev-11c0427e-1795580921" # {"$imagepolicy": "flux-system:recipegen:tag"}
+  tag: "dev-bbca7aa8-1795582985" # {"$imagepolicy": "flux-system:recipegen:tag"}
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 10001
