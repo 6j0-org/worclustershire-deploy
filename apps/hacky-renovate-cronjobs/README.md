@@ -2,7 +2,7 @@
 
 [Renovate](https://docs.renovatebot.com/) for several GitHub accounts from one GitHub App: devopscoop, 6j0-org, and 3uzbcqje. A CronJob runs the official Renovate image for each account in turn, each walled off from the others (see "Isolation"). It lives only in this repo, not in the fluxcd template; `apps/renovate` is the template's single-account version, synced from upstream and not deployed here. Every hour on weekdays, at 33 minutes past in UTC, a Job starts one pod, which works through each account's repos and exits. Nothing runs between runs.
 
-Every repo the app is installed on gets the same settings, from `config.json5`, with no onboarding PR and no `renovate.json` needed. Patch updates (x.y.Z) are automatic: Renovate opens the PR and merges it once every status check passes. In this repo, merging to `main` deploys. Every other update waits on the repo's Dependency Dashboard issue: Renovate opens its PR only after someone ticks its box there, and assigns it to the code owners of the files it changes, from the repo's `CODEOWNERS` file. Lock file maintenance is on too: every Monday before 04:00 UTC the dashboard offers one PR that refreshes every lock file in the repo. Renovate holds back an update until its release is 7 days old, and offers to pin container images and GitHub Actions to digests, so a moved tag can't change what runs.
+Every repo the app is installed on gets the same settings, from `config.json5`, with no onboarding PR and no `renovate.json` needed. Patch updates (x.y.Z) and minor updates (x.Y.z) are automatic: Renovate opens the PR and merges it once every status check passes. Minor updates from a 0.x version are the exception, since semver lets those break things; they wait on the dashboard like major updates. In this repo, merging to `main` deploys. Every other update waits on the repo's Dependency Dashboard issue: Renovate opens its PR only after someone ticks its box there, and assigns it to the code owners of the files it changes, from the repo's `CODEOWNERS` file. Lock file maintenance is on too: every Monday before 04:00 UTC the dashboard offers one PR that refreshes every lock file in the repo. Renovate holds back an update until its release is 7 days old, and offers to pin container images and GitHub Actions to digests, so a moved tag can't change what runs.
 
 Security fixes skip both the wait and the dashboard: Renovate opens them on its own as soon as it finds them, from GitHub's vulnerability alerts and from [osv.dev](https://osv.dev/)'s database.
 
@@ -52,7 +52,7 @@ To start a run without waiting for the schedule, for example right after ticking
 kubectl -n hacky-renovate-cronjobs create job --from=cronjob/renovate "renovate-manual-$(date +%s)"
 ```
 
-The first run creates the dashboard issue in each repo and opens PRs for any patch updates. Renovate merges a patch PR only when every status check passes, and a branch protection rule that requires a review blocks it unless the app may bypass the rule.
+The first run creates the dashboard issue in each repo and opens PRs for any patch and minor updates. Renovate merges one only when every status check passes, and a branch protection rule that requires a review blocks it unless the app may bypass the rule.
 
 ## Adding or removing an account
 

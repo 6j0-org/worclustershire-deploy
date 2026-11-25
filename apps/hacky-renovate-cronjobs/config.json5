@@ -48,5 +48,14 @@
       dependencyDashboardApproval: false,
       automerge: true,
     },
+    {
+      // Minor updates (x.Y.z) do the same, except from a 0.x version: semver
+      // lets a 0.Y bump break things, so those still wait on the dashboard.
+      // Same exclusion as Renovate's :automergeStableNonMajor preset.
+      matchUpdateTypes: ["minor"],
+      matchCurrentVersion: "!/^v?0\\./",
+      dependencyDashboardApproval: false,
+      automerge: true,
+    },
   ],
 }
