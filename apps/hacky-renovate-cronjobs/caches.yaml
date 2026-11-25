@@ -1,0 +1,36 @@
+# One cache volume per account (see cronjob.yaml), so one account's run can't
+# plant anything another account's run reads. Each holds that account's repo
+# clones, Renovate's caches, and its copy of osv.dev's database (about
+# 660 MiB). Deleting one only makes that account's next run slower.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: renovate-cache-devopscoop
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: renovate-cache-6j0-org
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: renovate-cache-3uzbcqje
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi

@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Setting namespace here will ensure that all objects managed by this Kustomization will explicitly be deployed to this namespace. You don't need to put specify `namespace:` anywhere else if you do this.
+namespace: hacky-renovate-cronjobs
+resources:
+  - namespace.yaml
+  - github-app.secrets.yaml
+  - caches.yaml
+  - cronjob.yaml
+configMapGenerator:
+  # The global config and the scripts each step runs.
+  - name: renovate
+    files:
+      - config.json5
+      - mint-token.mjs
+      - run-renovate.sh
+      - report.sh
+  # The GitHub App's ID, which create_github_app.sh writes. Not secret: it's
+  # on the app's public page.
+  - name: renovate-github-app
+    envs:
+      - github-app.env
+# Sets the tag on every container in cronjob.yaml. Renovate's kustomize
+# manager offers updates to it like any other dependency.
+images:
+  - name: ghcr.io/renovatebot/renovate
+    newTag: 44.210.0
