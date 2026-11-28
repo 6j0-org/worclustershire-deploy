@@ -26,7 +26,7 @@ replicaCount: 1
 # dev-<sha>-<time> tag is published; image automation then takes over.
 image:
   repository: registry.gitlab.com/6j0-org/id
-  tag: "dev-29f17318-1795827846" # {"$imagepolicy": "flux-system:id:tag"}
+  tag: "dev-78901ba2-1795831662" # {"$imagepolicy": "flux-system:id:tag"}
 # The image runs as `node` (1000) and writes only to /data. fsGroup makes the
 # Longhorn PVC writable.
 podSecurityContext:
